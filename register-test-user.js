@@ -1,8 +1,8 @@
-import fetch from 'node-fetch';
-
+// Using built-in fetch (Node.js 18+)
 async function registerTestUser() {
   try {
     // Professor user
+    console.log('Registering professor user...');
     const professorResponse = await fetch('http://localhost:5000/api/register', {
       method: 'POST',
       headers: {
@@ -21,6 +21,7 @@ async function registerTestUser() {
     console.log('Professor registration response:', professorData);
 
     // Student user
+    console.log('Registering student user...');
     const studentResponse = await fetch('http://localhost:5000/api/register', {
       method: 'POST',
       headers: {
