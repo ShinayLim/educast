@@ -44,52 +44,52 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </h2>
             <div className="space-y-1">
               <Link href="/">
-                <a className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
+                <div className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent cursor-pointer ${
                   location === "/" ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                 }`}>
                   <Home className="h-4 w-4" />
                   Home
-                </a>
+                </div>
               </Link>
               <Link href="/search">
-                <a className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
+                <div className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent cursor-pointer ${
                   location === "/search" ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                 }`}>
                   <Search className="h-4 w-4" />
                   Search
-                </a>
+                </div>
               </Link>
               
               {isProfessor ? (
                 // Professor navigation
                 <>
                   <Link href="/professor/upload">
-                    <a className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
+                    <div className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent cursor-pointer ${
                       location === "/professor/upload" ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                     }`}>
                       <Upload className="h-4 w-4" />
                       Upload Content
-                    </a>
+                    </div>
                   </Link>
                   <Link href="/professor/manage">
-                    <a className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
+                    <div className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent cursor-pointer ${
                       location === "/professor/manage" ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                     }`}>
                       <Users className="h-4 w-4" />
                       Manage Content
-                    </a>
+                    </div>
                   </Link>
                 </>
               ) : (
                 // Student navigation
                 <>
                   <Link href="/student/library">
-                    <a className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
+                    <div className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent cursor-pointer ${
                       location === "/student/library" ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                     }`}>
                       <BookOpen className="h-4 w-4" />
                       My Library
-                    </a>
+                    </div>
                   </Link>
                 </>
               )}
@@ -112,10 +112,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="py-4 mt-6">
             <div className="space-y-1">
               <Link href="/settings">
-                <a className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent text-muted-foreground">
+                <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent text-muted-foreground cursor-pointer">
                   <Settings className="h-4 w-4" />
                   Settings
-                </a>
+                </div>
               </Link>
             </div>
           </div>
