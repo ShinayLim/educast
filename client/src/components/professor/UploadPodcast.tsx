@@ -44,11 +44,15 @@ export default function UploadPodcast() {
   // Upload media file mutation
   const uploadMediaMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await apiRequest("POST", "/api/podcasts", undefined, {
+      const response = await fetch("/api/podcasts", {
+        method: "POST",
         body: formData,
-        // Don't set Content-Type header when sending FormData
-        headers: {},
+        // Don't set Content-Type header when sending FormData with fetch
       });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Upload failed");
+      }
       return await response.json();
     },
     onSuccess: () => {
@@ -78,10 +82,16 @@ export default function UploadPodcast() {
       const formData = new FormData();
       formData.append("thumbnail", data.file);
       
-      const response = await apiRequest("POST", `/api/podcasts/${data.id}/thumbnail`, undefined, {
+      const response = await fetch(`/api/podcasts/${data.id}/thumbnail`, {
+        method: "POST",
         body: formData,
-        headers: {},
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Thumbnail upload failed");
+      }
+      
       return await response.json();
     },
     onSuccess: () => {
