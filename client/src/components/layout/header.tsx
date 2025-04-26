@@ -1,157 +1,142 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
-import { Search, Bell, ChevronDown, Menu } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { Link } from "wouter";
+import { Menu, Search, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
-import { 
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Sidebar } from "./sidebar";
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+} from "@/components/ui/avatar";
 
 interface HeaderProps {
-  showSearch?: boolean;
-  transparent?: boolean;
-  className?: string;
+  onMenuClick?: () => void;
 }
 
-export function Header({ 
-  showSearch = true, 
-  transparent = false, 
-  className 
-}: HeaderProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [, navigate] = useLocation();
+export function Header({ onMenuClick }: HeaderProps) {
   const { user, logoutMutation } = useAuth();
-  
-  const handleSearch = (e: React.FormEvent) => {
+  const isMobile = useIsMobile();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Track scroll position for header styling
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Handle search submit
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
     }
-  };
-  
-  const handleLogout = () => {
-    logoutMutation.mutate();
   };
 
   return (
-    <header className={cn(
-      "sticky top-0 z-30 w-full p-4 md:p-6",
-      transparent ? "bg-transparent" : "bg-background/95 backdrop-blur-sm border-b border-border",
-      className
-    )}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center md:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-2">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0">
-              <Sidebar />
-            </SheetContent>
-          </Sheet>
-          
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
-            <Headphones className="h-4 w-4" />
-          </div>
-          <h1 className="ml-2 font-bold text-lg hidden sm:block">EduCast</h1>
-        </div>
-        
-        {showSearch && (
-          <form 
-            onSubmit={handleSearch}
-            className="max-w-md w-full mx-4 hidden md:block"
+    <header 
+      className={`sticky top-0 z-20 bg-background/80 backdrop-blur-sm transition-shadow ${
+        isScrolled ? "shadow-sm" : ""
+      }`}
+    >
+      <div className="h-16 px-4 md:px-6 flex items-center justify-between border-b">
+        {isMobile && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onMenuClick}
+            className="md:hidden"
           >
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search podcasts, educators..."
-                className="pl-10 bg-muted"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </form>
+            <Menu className="h-5 w-5" />
+          </Button>
         )}
+        
+        <div className="flex-1 max-w-md">
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search podcasts..."
+              className="pl-8 h-9 md:w-[300px] lg:w-[400px]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </form>
+        </div>
         
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
-            size="icon"
+            size="icon" 
             className="relative"
+            asChild
           >
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
+            <Link href="/notifications">
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full" />
+            </Link>
           </Button>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
-                {user?.avatarUrl ? (
-                  <img 
-                    src={user.avatarUrl} 
-                    alt={user.fullName} 
-                    className="w-8 h-8 rounded-full"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                    {user?.fullName?.charAt(0).toUpperCase()}
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <Avatar className="h-8 w-8">
+                    {user.avatarUrl ? (
+                      <AvatarImage 
+                        src={user.avatarUrl} 
+                        alt={user.fullName || user.username} 
+                      />
+                    ) : (
+                      <AvatarFallback>
+                        {user.fullName 
+                          ? user.fullName[0].toUpperCase() 
+                          : user.username[0].toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span>{user.fullName || user.username}</span>
+                    <span className="text-xs text-muted-foreground">{user.email}</span>
                   </div>
-                )}
-                <span className="hidden md:inline-block">{user?.fullName}</span>
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate("/profile")}>
-                Profile
-              </DropdownMenuItem>
-              {user?.role === "professor" && (
-                <DropdownMenuItem onClick={() => navigate("/professor/upload")}>
-                  Upload Content
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => navigate("/settings")}>
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">Settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => logoutMutation.mutate()}
+                  className="text-destructive focus:text-destructive"
+                >
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
-      
-      {showSearch && (
-        <form 
-          onSubmit={handleSearch}
-          className="mt-4 md:hidden"
-        >
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search podcasts, educators..."
-              className="pl-10 bg-muted"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </form>
-      )}
     </header>
   );
 }
-
-import { Headphones } from "lucide-react";

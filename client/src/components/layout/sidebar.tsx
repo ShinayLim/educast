@@ -1,157 +1,217 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { 
-  Home, Headphones, Search, BookmarkIcon, 
-  Mic, Users, Upload, BarChart, 
-  BookOpen, Settings, LogOut
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ModeToggle } from "../ui/theme-toggle";
+import { useAuth } from "@/hooks/use-auth";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Home,
+  Search,
+  Library,
+  Upload,
+  LucideIcon,
+  Settings,
+  Users,
+  X,
+  Menu,
+  LogOut,
+} from "lucide-react";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
-interface SidebarLink {
-  icon: React.ReactNode;
-  label: string;
-  href: string;
-  role?: string[];
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar() {
+interface NavItem {
+  title: string;
+  icon: LucideIcon;
+  href: string;
+  role?: "professor" | "student" | "all";
+}
+
+export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const [location] = useLocation();
   const { user, logoutMutation } = useAuth();
-  
-  const isActive = (path: string) => {
-    return location === path;
-  };
-  
+  const isMobile = useIsMobile();
+  const [isVisible, setIsVisible] = useState(!isMobile);
+
+  // Navigation items
+  const navItems: NavItem[] = [
+    { title: "Home", icon: Home, href: "/", role: "all" },
+    { title: "Search", icon: Search, href: "/search", role: "all" },
+    { title: "Library", icon: Library, href: "/student/library", role: "student" },
+    { title: "Upload", icon: Upload, href: "/professor/upload", role: "professor" },
+    { title: "Manage Content", icon: Users, href: "/professor/manage", role: "professor" },
+  ];
+
+  // Filter nav items based on user role
+  const filteredNavItems = navItems.filter(
+    item => item.role === "all" || !item.role || item.role === user?.role
+  );
+
+  // Update visibility when isOpen prop changes
+  useEffect(() => {
+    if (isMobile) {
+      setIsVisible(isOpen);
+    }
+  }, [isOpen, isMobile]);
+
+  // Update visibility when screen size changes
+  useEffect(() => {
+    setIsVisible(!isMobile);
+  }, [isMobile]);
+
+  // Handle logout
   const handleLogout = () => {
     logoutMutation.mutate();
   };
-  
-  const isProfessor = user?.role === "professor";
 
-  const commonLinks: SidebarLink[] = [
-    { icon: <Home className="h-5 w-5" />, label: "Home", href: "/" },
-    { icon: <Search className="h-5 w-5" />, label: "Search", href: "/search" },
-    { icon: <Headphones className="h-5 w-5" />, label: "Browse", href: "/browse" }
-  ];
-  
-  const professorLinks: SidebarLink[] = [
-    { icon: <Upload className="h-5 w-5" />, label: "Upload Content", href: "/professor/upload", role: ["professor"] },
-    { icon: <BarChart className="h-5 w-5" />, label: "Analytics", href: "/professor/analytics", role: ["professor"] },
-    { icon: <Mic className="h-5 w-5" />, label: "My Content", href: "/professor/manage", role: ["professor"] }
-  ];
-  
-  const studentLinks: SidebarLink[] = [
-    { icon: <BookOpen className="h-5 w-5" />, label: "Library", href: "/student/library", role: ["student"] },
-    { icon: <BookmarkIcon className="h-5 w-5" />, label: "Saved", href: "/student/saved", role: ["student"] },
-    { icon: <Users className="h-5 w-5" />, label: "Professors", href: "/student/professors", role: ["student"] }
-  ];
-  
-  const renderLinks = (links: SidebarLink[]) => {
-    return links.map((link) => {
-      // Skip if the link is role-restricted and user doesn't have the role
-      if (link.role && !link.role.includes(user?.role || "")) {
-        return null;
-      }
-      
-      return (
-        <Link key={link.href} href={link.href}>
-          <a
-            className={cn(
-              "sidebar-link flex items-center px-4 py-2 rounded-md text-sm mb-1",
-              isActive(link.href)
-                ? "active bg-primary/10 text-primary font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            )}
-          >
-            {link.icon}
-            <span className="ml-3">{link.label}</span>
-          </a>
-        </Link>
-      );
-    });
-  };
-
-  return (
-    <div className="w-64 h-screen fixed top-0 left-0 bg-sidebar border-r border-border flex flex-col z-40">
-      <div className="p-4 flex items-center">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white">
-          <Headphones className="h-5 w-5" />
-        </div>
-        <h1 className="ml-3 font-bold text-xl">EduCast</h1>
-      </div>
-      
-      <nav className="flex-1 px-2 py-4 overflow-y-auto custom-scrollbar">
-        <div className="mb-6">
-          <h2 className="px-4 text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            Main
-          </h2>
-          {renderLinks(commonLinks)}
-        </div>
-        
-        {isProfessor && (
-          <div className="mb-6">
-            <h2 className="px-4 text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              Creator Tools
-            </h2>
-            {renderLinks(professorLinks)}
+  // Mobile sidebar
+  if (isMobile) {
+    return (
+      <>
+        <div 
+          className={`fixed inset-0 bg-background/80 backdrop-blur-sm z-40 ${
+            isVisible ? "block" : "hidden"
+          }`}
+          onClick={onClose}
+        />
+        <div
+          className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r shadow-lg transform transition-transform duration-200 ease-in-out ${
+            isVisible ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-xl font-bold">EduCast</h2>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-        )}
-        
-        {!isProfessor && (
-          <div className="mb-6">
-            <h2 className="px-4 text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              Your Library
-            </h2>
-            {renderLinks(studentLinks)}
-          </div>
-        )}
-      </nav>
-      
-      <div className="p-4 border-t border-border">
-        <div className="flex items-center justify-between mb-4">
-          <ModeToggle />
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
+          <nav className="p-4 space-y-2">
+            {filteredNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={isMobile ? onClose : undefined}
+              >
+                <a
+                  className={`flex items-center gap-3 p-2 rounded-md text-sm font-medium transition-colors ${
+                    location === item.href
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent/50"
+                  }`}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.title}
+                </a>
+              </Link>
+            ))}
+          </nav>
+          
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  asChild
+                >
+                  <Link href="/settings">
+                    <Settings className="h-5 w-5" />
+                  </Link>
+                </Button>
+              </div>
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </div>
+            
+            {user && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                  {user.fullName ? user.fullName[0].toUpperCase() : "U"}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-medium truncate">{user.fullName || user.username}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.role}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Desktop sidebar
+  return (
+    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
+      <div className="flex-1 flex flex-col min-h-0 border-r bg-card">
+        <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+          <div className="flex items-center flex-shrink-0 px-4 mb-5">
+            <h1 className="text-xl font-bold">EduCast</h1>
+          </div>
+          
+          <nav className="mt-5 flex-1 px-4 space-y-2">
+            {filteredNavItems.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <a
+                  className={`flex items-center gap-3 p-2 rounded-md text-sm font-medium transition-colors ${
+                    location === item.href
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent/50"
+                  }`}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.title}
+                </a>
+              </Link>
+            ))}
+          </nav>
         </div>
         
-        <div className="flex items-center">
-          {user?.avatarUrl ? (
-            <img 
-              src={user.avatarUrl} 
-              alt={user.fullName} 
-              className="w-8 h-8 rounded-full"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-              {user?.fullName?.charAt(0).toUpperCase()}
+        <div className="flex-shrink-0 p-4 border-t">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button 
+                variant="ghost" 
+                size="icon"
+                asChild
+              >
+                <Link href="/settings">
+                  <Settings className="h-5 w-5" />
+                </Link>
+              </Button>
+            </div>
+            
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
+          
+          {user && (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                {user.fullName ? user.fullName[0].toUpperCase() : "U"}
+              </div>
+              <div className="overflow-hidden">
+                <p className="font-medium truncate">{user.fullName || user.username}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.role}</p>
+              </div>
             </div>
           )}
-          <div className="ml-2 truncate">
-            <p className="text-sm font-medium">{user?.fullName}</p>
-            <p className="text-xs text-muted-foreground">{user?.role}</p>
-          </div>
         </div>
       </div>
     </div>

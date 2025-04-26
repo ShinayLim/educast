@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import PodcastList from "../shared/PodcastList";
 
-export default function ProfessorDashboard() {
+export function ProfessorDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
 

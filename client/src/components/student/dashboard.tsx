@@ -1,216 +1,191 @@
-import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
-import { Podcast, User } from "@shared/schema";
-import { PodcastList } from "@/components/podcast/podcast-list";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, BookOpen, Search, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Plus, Podcast, History, Bookmark, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import PodcastList from "../shared/PodcastList";
 import { Link } from "wouter";
 
 export function StudentDashboard() {
   const { user } = useAuth();
-  
-  // Fetch all podcasts
-  const { data: allPodcasts = [], isLoading: isLoadingPodcasts } = useQuery<Podcast[]>({
-    queryKey: ['/api/podcasts'],
+  const [activeTab, setActiveTab] = useState("discover");
+
+  // Fetch all podcasts for discovery
+  const { data: podcasts = [] } = useQuery({
+    queryKey: ["/api/podcasts"],
+    queryFn: async () => {
+      const response = await fetch("/api/podcasts");
+      if (!response.ok) throw new Error("Failed to fetch podcasts");
+      return response.json();
+    },
   });
-  
-  // Fetch professors
-  const { data: professors = [], isLoading: isLoadingProfessors } = useQuery<User[]>({
-    queryKey: ['/api/users'],
-    select: (users) => users.filter(user => user.role === 'professor'),
+
+  // Fetch student's playlists
+  const { data: playlists = [] } = useQuery({
+    queryKey: ["/api/users", user?.id, "playlists"],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const response = await fetch(`/api/users/${user.id}/playlists`);
+      if (!response.ok) throw new Error("Failed to fetch playlists");
+      return response.json();
+    },
+    enabled: !!user?.id,
   });
-  
-  // Get featured/recommended podcasts (newest 4)
-  const featuredPodcasts = [...allPodcasts]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4);
-  
-  // Get popular podcasts (random 4 for demo, would be based on views/likes in production)
-  const popularPodcasts = [...allPodcasts]
-    .sort(() => 0.5 - Math.random())
-    .slice(0, 4);
-  
-  // Get audio podcasts
-  const audioPodcasts = allPodcasts
-    .filter(podcast => podcast.mediaType === 'audio')
-    .slice(0, 4);
-  
-  // Get video podcasts
-  const videoPodcasts = allPodcasts
-    .filter(podcast => podcast.mediaType === 'video')
-    .slice(0, 4);
+
+  // Fetch recently viewed podcasts
+  const { data: recentlyViewed = [] } = useQuery({
+    queryKey: ["/api/users", user?.id, "recently-viewed"],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const response = await fetch(`/api/users/${user.id}/recently-viewed`);
+      if (!response.ok) throw new Error("Failed to fetch recently viewed");
+      return response.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Recent uploads - last 10 podcasts
+  const recentUploads = [...podcasts].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  }).slice(0, 10);
+
+  // Popular podcasts - most viewed
+  const popularPodcasts = [...podcasts].sort((a, b) => 
+    (b.views?.length || 0) - (a.views?.length || 0)
+  ).slice(0, 6);
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Podcasts</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{allPodcasts.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {audioPodcasts.length} audio, {videoPodcasts.length} video
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Professors</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{professors.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Educational content creators
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recently Played</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Start listening to track progress
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Your Playlists</CardTitle>
-            <List className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Create playlists to organize content
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Welcome to EduCast</CardTitle>
-            <CardDescription>
-              Discover educational podcasts from leading professors
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Browse through our collection of educational content, create playlists, 
-              and engage with professors and other students. Track your learning progress 
-              and download content for offline listening.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <Button asChild className="w-full">
-                <Link href="/browse">
-                  <BookOpen className="mr-2 h-5 w-5" />
-                  Browse All Content
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/search">
-                  <Search className="mr-2 h-5 w-5" />
-                  Search
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/student/library">
-                  <List className="mr-2 h-5 w-5" />
-                  My Library
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/student/professors">
-                  <BookOpen className="mr-2 h-5 w-5" />
-                  Professors
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="container py-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <TabsList>
+          <TabsTrigger value="discover" className="flex items-center">
+            <Podcast className="mr-2 h-4 w-4" />
+            Discover
+          </TabsTrigger>
+          <TabsTrigger value="recent" className="flex items-center">
+            <History className="mr-2 h-4 w-4" />
+            Recently Played
+          </TabsTrigger>
+          <TabsTrigger value="playlists" className="flex items-center">
+            <Bookmark className="mr-2 h-4 w-4" />
+            My Playlists
+          </TabsTrigger>
+        </TabsList>
         
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Get Started</CardTitle>
-            <CardDescription>
-              Follow these steps to make the most of EduCast
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 text-primary rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
-                1
+        <TabsContent value="discover">
+          <div className="space-y-8">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">New Releases</h2>
+                <Button variant="outline" asChild>
+                  <Link to="/search">
+                    <Search className="mr-2 h-4 w-4" />
+                    Browse All
+                  </Link>
+                </Button>
               </div>
-              <div>
-                <h4 className="font-medium mb-1">Browse Content</h4>
-                <p className="text-sm text-muted-foreground">Discover educational podcasts from various professors</p>
-              </div>
+              
+              <PodcastList 
+                podcasts={recentUploads} 
+                emptyMessage="No podcasts available yet." 
+                variant="default"
+              />
             </div>
             
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 text-primary rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
-                2
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">Create Playlists</h4>
-                <p className="text-sm text-muted-foreground">Organize content based on topics or courses</p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Most Popular</h2>
+              <PodcastList 
+                podcasts={popularPodcasts} 
+                emptyMessage="No podcasts available yet." 
+                variant="default"
+              />
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="recent">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Recently Played</h2>
             </div>
             
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 text-primary rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
-                3
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">Engage with Content</h4>
-                <p className="text-sm text-muted-foreground">Comment, like, and share educational podcasts</p>
-              </div>
+            {recentlyViewed.length > 0 ? (
+              <PodcastList 
+                podcasts={recentlyViewed} 
+                variant="list"
+              />
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <History className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No recently played podcasts</h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    You haven't listened to any podcasts yet. Start exploring our collection!
+                  </p>
+                  <Button asChild>
+                    <Link to="/search">
+                      <Search className="mr-2 h-4 w-4" />
+                      Browse Podcasts
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="playlists">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">My Playlists</h2>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Playlist
+              </Button>
             </div>
             
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 text-primary rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
-                4
+            {playlists.length > 0 ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {playlists.map((playlist: any) => (
+                  <Link key={playlist.id} href={`/playlist/${playlist.id}`}>
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                      <CardHeader>
+                        <CardTitle>{playlist.title}</CardTitle>
+                        <CardDescription>
+                          {playlist.description || 'No description'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          {playlist.items?.length || 0} podcast{playlist.items?.length !== 1 ? 's' : ''}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
               </div>
-              <div>
-                <h4 className="font-medium mb-1">Track Progress</h4>
-                <p className="text-sm text-muted-foreground">Monitor your learning journey</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <PodcastList
-        title="Featured Podcasts"
-        podcasts={featuredPodcasts}
-        emptyMessage="No featured podcasts available"
-        showMore={allPodcasts.length > 4}
-        onShowMore={() => window.location.href = "/browse"}
-      />
-      
-      <PodcastList
-        title="Popular Audio Podcasts"
-        podcasts={audioPodcasts}
-        emptyMessage="No audio podcasts available"
-        showMore={audioPodcasts.length > 4}
-        onShowMore={() => window.location.href = "/browse"}
-      />
-      
-      <PodcastList
-        title="Video Lectures"
-        podcasts={videoPodcasts}
-        emptyMessage="No video lectures available"
-        showMore={videoPodcasts.length > 4}
-        onShowMore={() => window.location.href = "/browse"}
-      />
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Bookmark className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No playlists yet</h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    Create playlists to organize your favorite educational content
+                  </p>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Playlist
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
