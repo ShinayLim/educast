@@ -90,7 +90,7 @@ export function ProfessorDashboard() {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="col-span-1">
+        {/* <Card className="col-span-1">
           <CardHeader>
             <CardTitle>Weekly Activity</CardTitle>
             <CardDescription>
@@ -130,7 +130,7 @@ export function ProfessorDashboard() {
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
-        </Card>
+        </Card> */}
         
         <Card className="col-span-1">
           <CardHeader>

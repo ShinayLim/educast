@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import PUPlogo from './../../../attached_assets/PUPLogo.png';
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -272,6 +273,7 @@ export default function AuthPage() {
         {/* Right side - Banner */}
         <div className="hidden md:flex md:w-1/2 bg-primary p-10 text-white flex-col justify-center">
           <div className="max-w-lg mx-auto space-y-8">
+          <img src={PUPlogo} alt="PUP Logo" className="mx-auto w-32 h-auto" />
             <h1 className="text-4xl font-bold">Educational Podcasts Platform</h1>
             <p className="text-xl">
               Discover, learn, and engage with educational content from leading professors and institutions.
