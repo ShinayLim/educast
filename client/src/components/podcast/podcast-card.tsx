@@ -61,7 +61,7 @@ export function PodcastCard({
       )}
     >
       <Link href={`/podcast/${id}`}>
-        <a className="block">
+        <div className="block cursor-pointer">
           <div className="relative">
             <img 
               src={thumbnailSrc} 
@@ -101,20 +101,20 @@ export function PodcastCard({
               </div>
             </div>
           </div>
-        </a>
+        </div>
       </Link>
       
       <div className="p-4">
         <Link href={`/podcast/${id}`}>
-          <a className="block">
+          <div className="block cursor-pointer">
             <h3 className="font-bold text-base line-clamp-1 hover:text-primary transition-colors">{title}</h3>
-          </a>
+          </div>
         </Link>
         
         <Link href={`/professor/${authorId}`}>
-          <a className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <div className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
             {author}
-          </a>
+          </div>
         </Link>
         
         <div className="flex items-center justify-between mt-3">
@@ -125,10 +125,10 @@ export function PodcastCard({
             className="rounded-full"
           >
             <Link href={`/podcast/${id}`}>
-              <a className="flex items-center gap-1">
+              <div className="flex items-center gap-1 cursor-pointer">
                 <Play className="h-4 w-4" />
                 Listen now
-              </a>
+              </div>
             </Link>
           </Button>
           
