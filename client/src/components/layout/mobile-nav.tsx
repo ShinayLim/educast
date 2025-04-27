@@ -39,14 +39,14 @@ export function MobileNav() {
       <div className="grid grid-cols-3 h-16">
         {filteredLinks.slice(0, 3).map((link) => (
           <Link key={link.href} href={link.href}>
-            <a
-              className={`flex flex-col items-center justify-center h-full text-xs ${
+            <div
+              className={`flex flex-col items-center justify-center h-full text-xs cursor-pointer ${
                 location === link.href ? "text-primary" : "text-muted-foreground"
               }`}
             >
               <link.icon className="h-5 w-5 mb-1" />
               <span>{link.label}</span>
-            </a>
+            </div>
           </Link>
         ))}
       </div>
