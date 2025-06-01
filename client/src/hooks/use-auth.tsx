@@ -4,11 +4,46 @@ import {
   useMutation,
   UseMutationResult,
 } from "@tanstack/react-query";
-import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
-import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { getQueryFn, queryClient } from "../lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+
+export type SelectUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  username: string;
+  role: "student" | "professor";
+};
+
+// After:
+export type LoginData = {
+  username: string
+  password: string
+}
+
+
+export const registerSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(8),
+  email: z.string().email(),
+  fullName: z.string().min(2),
+  role: z.enum(["professor", "student"]),
+});
+
+export type RegisterData = z.infer<typeof registerSchema>;
+export const registerResolver = zodResolver(registerSchema);
+
+export const loginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+});
+
+export const loginResolver = zodResolver(loginSchema);
+
+export const AuthContext = createContext<AuthContextType | null>(null);
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -19,32 +54,68 @@ type AuthContextType = {
   registerMutation: UseMutationResult<SelectUser, Error, RegisterData>;
 };
 
-type LoginData = Pick<InsertUser, "username" | "password">;
+async function registerUser(data: RegisterData): Promise<SelectUser> {
+  const { email, password, fullName, username, role } = data;
 
-// Extended schema for registration with validation
-export const registerSchema = insertUserSchema.extend({
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  email: z.string().email("Please enter a valid email"),
-  fullName: z.string().min(2, "Full name is required"),
-  role: z.enum(["professor", "student"], {
-    required_error: "Please select a role",
-  }),
-});
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-export type RegisterData = z.infer<typeof registerSchema>;
-export const registerResolver = zodResolver(registerSchema);
+  if (signUpError) throw signUpError;
 
-// Login validation schema
-export const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
-});
-export const loginResolver = zodResolver(loginSchema);
+  const user = signUpData.user;
 
-export const AuthContext = createContext<AuthContextType | null>(null);
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: user?.id,
+    full_name: fullName,
+    username,
+    role,
+  });
+
+  if (profileError) throw profileError;
+
+  return {
+    id: user?.id!,
+    email,
+    fullName,
+    username,
+    role,
+  };
+}
+
+async function loginUser(data: LoginData): Promise<SelectUser> {
+  const { username, password } = data;
+
+  const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+    email: username,
+    password,
+  });
+
+  if (loginError) throw loginError;
+
+  const user = loginData.user;
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) throw profileError;
+
+  return {
+    id: user.id,
+    email: user.email!,
+    fullName: profile.full_name,
+    username: profile.username,
+    role: profile.role,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+
   const {
     data: user,
     error,
@@ -54,43 +125,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
-      return await res.json();
-    },
-    onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${user.fullName}!`,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Login failed",
-        description: error.message || "Invalid username or password",
-        variant: "destructive",
-      });
-    },
-  });
-
   const registerMutation = useMutation({
-    mutationFn: async (credentials: RegisterData) => {
-      const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
-    },
-    onSuccess: (user: SelectUser) => {
+    mutationFn: registerUser,
+    onSuccess: (user) => {
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Registration successful",
         description: `Welcome to EduCast, ${user.fullName}!`,
       });
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
         title: "Registration failed",
-        description: error.message || "Something went wrong. Please try again.",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: loginUser,
+    onSuccess: (user) => {
+      queryClient.setQueryData(["/api/user"], user);
+      toast({
+        title: "Login successful",
+        description: `Welcome back, ${user.fullName}!`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Login failed",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -98,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
+      await supabase.auth.signOut();
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
@@ -107,10 +172,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "You have been logged out.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
         title: "Logout failed",
-        description: error.message || "Something went wrong. Please try again.",
+        description: error.message,
         variant: "destructive",
       });
     },

@@ -109,9 +109,9 @@ export default function AuthPage() {
                         name="username"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Username</FormLabel>
+                            <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="username" {...field} />
+                              <Input placeholder="juandelacruz@iskolarngbayan.pup.edu.ph" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -173,7 +173,7 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Full Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="John Doe" {...field} />
+                              <Input placeholder="Juan Dela Cruz" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -189,7 +189,7 @@ export default function AuthPage() {
                             <FormControl>
                               <Input
                                 type="email"
-                                placeholder="example@email.com"
+                                placeholder="juandelacruz@iskolarngbayan.pup.edu.ph"
                                 {...field}
                               />
                             </FormControl>
