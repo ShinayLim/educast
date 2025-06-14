@@ -1,206 +1,255 @@
-import { createContext, ReactNode, useContext } from "react";
-import {
-  useQuery,
-  useMutation,
-  UseMutationResult,
-} from "@tanstack/react-query";
-import { zodResolver } from "@hookform/resolvers/zod";
+// client/src/hooks/use-auth.tsx
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { getQueryFn, queryClient } from "../lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { User as SBUser, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
+
+// ────────────────────────────────────────────────────────────
+// 1) Your “shape” for a logged-in user
+// ────────────────────────────────────────────────────────────
 export type SelectUser = {
-  id: string;
-  email: string;
+  id:       string;
+  email:    string;
   fullName: string;
   username: string;
-  role: "student" | "professor";
+  role:     "student" | "professor";
 };
 
-// After:
-export type LoginData = {
-  username: string
-  password: string
-}
 
-
+// ────────────────────────────────────────────────────────────
+// 2) Zod schemas + resolvers for Register & Login forms
+// ────────────────────────────────────────────────────────────
 export const registerSchema = z.object({
   username: z.string().min(1),
-  password: z.string().min(8),
-  email: z.string().email(),
+  email:    z.string().email(),
   fullName: z.string().min(2),
-  role: z.enum(["professor", "student"]),
+  password: z.string().min(8),
+  role:     z.enum(["professor", "student"]),
 });
-
 export type RegisterData = z.infer<typeof registerSchema>;
 export const registerResolver = zodResolver(registerSchema);
 
 export const loginSchema = z.object({
-  username: z.string().min(1),
+  email:    z.string().email(),
   password: z.string().min(1),
 });
-
+export type LoginData = z.infer<typeof loginSchema>;
 export const loginResolver = zodResolver(loginSchema);
 
-export const AuthContext = createContext<AuthContextType | null>(null);
 
-type AuthContextType = {
-  user: SelectUser | null;
+// ────────────────────────────────────────────────────────────
+// 3) Context type
+// ────────────────────────────────────────────────────────────
+interface AuthContextType {
+  user:      SelectUser | null;
   isLoading: boolean;
-  error: Error | null;
-  loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
-  logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<SelectUser, Error, RegisterData>;
-};
+  error:     Error | null;
 
-async function registerUser(data: RegisterData): Promise<SelectUser> {
-  const { email, password, fullName, username, role } = data;
-
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (signUpError) throw signUpError;
-
-  const user = signUpData.user;
-
-  const { error: profileError } = await supabase.from("profiles").insert({
-    id: user?.id,
-    full_name: fullName,
-    username,
-    role,
-  });
-
-  if (profileError) throw profileError;
-
-  return {
-    id: user?.id!,
-    email,
-    fullName,
-    username,
-    role,
-  };
+  // expose these async functions to your forms/components:
+  register:  (data: RegisterData) => Promise<SelectUser>;
+  login:     (data: LoginData)   => Promise<SelectUser>;
+  logout:    ()                   => Promise<void>;
 }
 
-async function loginUser(data: LoginData): Promise<SelectUser> {
-  const { username, password } = data;
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-    email: username,
-    password,
-  });
 
-  if (loginError) throw loginError;
-
-  const user = loginData.user;
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError) throw profileError;
-
-  return {
-    id: user.id,
-    email: user.email!,
-    fullName: profile.full_name,
-    username: profile.username,
-    role: profile.role,
-  };
-}
-
+// ────────────────────────────────────────────────────────────
+// 4) The AuthProvider
+// ────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const [user,    setUser]    = useState<SelectUser | null>(null);
+  const [isLoading, setLoading] = useState(true);
+  const [error,   setError]   = useState<Error | null>(null);
 
-  const {
-    data: user,
-    error,
-    isLoading,
-  } = useQuery<SelectUser | null>({
-    queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-  });
+  // helper: given a Supabase User, fetch your `profiles` row and merge
+  async function fetchProfile(u: SBUser): Promise<SelectUser> {
+    if (!u.email) throw new Error("Supabase user has no email");
 
-  const registerMutation = useMutation({
-    mutationFn: registerUser,
-    onSuccess: (user) => {
-      queryClient.setQueryData(["/api/user"], user);
+    const { data: profile, error: pErr } = await supabase
+      .from("profiles")
+      .select("username, full_name, role")
+      .eq("id", u.id)
+      .single();
+    if (pErr) throw pErr;
+
+    return {
+      id:       u.id,
+      email:    u.email,
+      username: profile.username!,
+      fullName: profile.full_name!,
+      role:     profile.role as SelectUser["role"],
+    };
+  }
+
+  useEffect(() => {
+    let mounted = true;
+
+    // 1) on first load, see if there's already a session
+    supabase.auth
+      .getSession()
+      .then(({ data, error: sessErr }) => {
+        if (sessErr && mounted) {
+          setError(sessErr);
+        } else if (data.session?.user && mounted) {
+          fetchProfile(data.session.user)
+            .then((u) => mounted && setUser(u))
+            .catch((err) => mounted && setError(err as Error));
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    // 2) subscribe to future sign-in / sign-out events
+    const { data } = supabase.auth.onAuthStateChange(
+      (_event, session: Session | null) => {
+        if (session?.user) {
+          fetchProfile(session.user)
+            .then((u) => setUser(u))
+            .catch((err) => setError(err as Error));
+        } else {
+          setUser(null);
+        }
+      }
+    );
+    // note: supabase-js v2 returns `{ data: { subscription } }`
+    const subscription = (data as any).subscription;
+
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+
+  // ────────────────────────────────────────────────────────────
+  // 5) React-Query mutations for register / login / logout
+  // ────────────────────────────────────────────────────────────
+
+  const registerMutation = useMutation<SelectUser, Error, RegisterData>({
+    mutationFn: async (formData: RegisterData) => {
+      // 1) create the Auth user
+      const { data: sData, error: sErr } = await supabase.auth.signUp({
+        email:    formData.email,
+        password: formData.password,
+      });
+      if (sErr) throw sErr;
+
+      // 2) write your extra profile columns
+      const u = sData.user!;
+      const { error: pErr } = await supabase
+        .from("profiles")
+        .insert({
+          id:         u.id,
+          username:   formData.username,
+          full_name:  formData.fullName,
+          role:       formData.role,
+        });
+      if (pErr) throw pErr;
+
+      // return the full shape
+      return fetchProfile(u);
+    },
+    onSuccess: (u) => {
+      setUser(u);
       toast({
         title: "Registration successful",
-        description: `Welcome to EduCast, ${user.fullName}!`,
+        description: `Welcome, ${u.fullName}!`,
       });
     },
-    onError: (error) => {
+    onError: (err) => {
       toast({
         title: "Registration failed",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
       });
     },
   });
 
-  const loginMutation = useMutation({
-    mutationFn: loginUser,
-    onSuccess: (user) => {
-      queryClient.setQueryData(["/api/user"], user);
+  const loginMutation = useMutation<SelectUser, Error, LoginData>({
+    mutationFn: async (formData: LoginData) => {
+      const { data: lData, error: lErr } =
+        await supabase.auth.signInWithPassword({
+          email:    formData.email,
+          password: formData.password,
+        });
+      if (lErr) throw lErr;
+      return fetchProfile(lData.user!);
+    },
+    onSuccess: (u) => {
+      setUser(u);
       toast({
         title: "Login successful",
-        description: `Welcome back, ${user.fullName}!`,
+        description: `Welcome back, ${u.fullName}!`,
       });
     },
-    onError: (error) => {
+    onError: (err) => {
       toast({
         title: "Login failed",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
       });
     },
   });
 
-  const logoutMutation = useMutation({
+  const logoutMutation = useMutation<void, Error>({
     mutationFn: async () => {
-      await supabase.auth.signOut();
+      const { error: outErr } = await supabase.auth.signOut();
+      if (outErr) throw outErr;
     },
     onSuccess: () => {
-      queryClient.setQueryData(["/api/user"], null);
+      setUser(null);
       toast({
         title: "Logout successful",
         description: "You have been logged out.",
       });
     },
-    onError: (error) => {
+    onError: (err) => {
       toast({
         title: "Logout failed",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
       });
     },
   });
 
+  // ────────────────────────────────────────────────────────────
+  // 6) Context value & render
+  // ────────────────────────────────────────────────────────────
+  const value: AuthContextType = {
+    user,
+    isLoading,
+    error,
+    register: registerMutation.mutateAsync,
+    login:    loginMutation.mutateAsync,
+    logout:   logoutMutation.mutateAsync,
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user: user ?? null,
-        isLoading,
-        error,
-        loginMutation,
-        logoutMutation,
-        registerMutation,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+
+// ────────────────────────────────────────────────────────────
+// 7) Hook to consume the context
+// ────────────────────────────────────────────────────────────
+export function useAuth(): AuthContextType {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 }

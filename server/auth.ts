@@ -37,7 +37,7 @@ export function setupAuth(app: Express) {
     store: storage.sessionStore,
     cookie: {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    }
+    },
   };
 
   app.set("trust proxy", 1);
@@ -53,7 +53,7 @@ export function setupAuth(app: Express) {
       } else {
         return done(null, user);
       }
-    }),
+    })
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
@@ -74,8 +74,10 @@ export function setupAuth(app: Express) {
     try {
       // Validate request body
       const validatedData = registerSchema.parse(req.body);
-      
-      const existingUser = await storage.getUserByUsername(validatedData.username);
+
+      const existingUser = await storage.getUserByUsername(
+        validatedData.username
+      );
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
@@ -87,16 +89,16 @@ export function setupAuth(app: Express) {
 
       req.login(user, (err) => {
         if (err) return next(err);
-        
+
         // Don't return password in response
         const { password, ...userWithoutPassword } = user;
         res.status(201).json(userWithoutPassword);
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors,
         });
       }
       next(error);
@@ -104,21 +106,26 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
-      if (err) return next(err);
-      
-      if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
-      }
-      
-      req.login(user, (err) => {
+    passport.authenticate(
+      "local",
+      (err: any, user: Express.User | false, info: any) => {
         if (err) return next(err);
-        
-        // Don't return password in response
-        const { password, ...userWithoutPassword } = user;
-        res.status(200).json(userWithoutPassword);
-      });
-    })(req, res, next);
+
+        if (!user) {
+          return res
+            .status(401)
+            .json({ message: "Invalid username or password" });
+        }
+
+        req.login(user, (err) => {
+          if (err) return next(err);
+
+          // Don't return password in response
+          const { password, ...userWithoutPassword } = user;
+          res.status(200).json(userWithoutPassword);
+        });
+      }
+    )(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -130,7 +137,7 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
+
     // Don't return password in response
     const { password, ...userWithoutPassword } = req.user as SelectUser;
     res.json(userWithoutPassword);
