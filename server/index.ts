@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { supabase } from "@/lib/supabase"; // relative import
 
 const app = express();
 app.use(express.json());
@@ -36,6 +37,30 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ Add this route before error middleware and Vite setup
+app.get("/api/professors/:id/podcasts", async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from("podcasts")
+      .select("*")
+      .eq("creator_id", id);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ message: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error("Route error:", err);
+    res
+      .status(500)
+      .json({ message: (err as Error).message || "Unknown error" });
+  }
+});
+
 (async () => {
   const server = await registerRoutes(app);
 
@@ -47,21 +72,14 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = 5000;
   server.listen(port, () => {
     log(`serving on port ${port}`);
   });
-  
 })();

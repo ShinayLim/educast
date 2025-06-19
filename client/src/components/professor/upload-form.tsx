@@ -7,35 +7,50 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { 
-  Form, 
-  FormControl, 
-  FormDescription, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Upload, FileAudio, FileVideo, X, Check, Headphones, Video } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  FileAudio,
+  FileVideo,
+  X,
+  Check,
+  Headphones,
+  Video,
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 // Define the schema for podcast upload form
 const uploadSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title must be less than 100 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters").max(2000, "Description must be less than 2000 characters"),
+  title: z
+    .string()
+    .min(3, "Title must be at least 3 characters")
+    .max(100, "Title must be less than 100 characters"),
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .max(2000, "Description must be less than 2000 characters"),
   mediaType: z.enum(["audio", "video"], {
     required_error: "You must select a media type",
   }),
@@ -55,7 +70,7 @@ export function UploadForm() {
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Initialize the form
   const form = useForm<UploadFormValues>({
     resolver: zodResolver(uploadSchema),
@@ -66,17 +81,17 @@ export function UploadForm() {
       tags: "",
     },
   });
-  
+
   // Track the selected media type
   const mediaType = form.watch("mediaType");
-  
+
   // Handle media file selection
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const mediaType = form.getValues("mediaType");
-    
+
     // Check if the file type matches the selected media type
     if (mediaType === "audio" && !file.type.startsWith("audio/")) {
       toast({
@@ -86,7 +101,7 @@ export function UploadForm() {
       });
       return;
     }
-    
+
     if (mediaType === "video" && !file.type.startsWith("video/")) {
       toast({
         title: "Invalid file type",
@@ -95,7 +110,7 @@ export function UploadForm() {
       });
       return;
     }
-    
+
     // Check file size (100MB max)
     if (file.size > 100 * 1024 * 1024) {
       toast({
@@ -105,15 +120,15 @@ export function UploadForm() {
       });
       return;
     }
-    
+
     setUploadedMedia(file);
   };
-  
+
   // Handle thumbnail file selection
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Check if the file is an image
     if (!file.type.startsWith("image/")) {
       toast({
@@ -123,7 +138,7 @@ export function UploadForm() {
       });
       return;
     }
-    
+
     // Check file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast({
@@ -133,9 +148,9 @@ export function UploadForm() {
       });
       return;
     }
-    
+
     setUploadedThumbnail(file);
-    
+
     // Create a preview URL for the thumbnail
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -143,7 +158,7 @@ export function UploadForm() {
     };
     reader.readAsDataURL(file);
   };
-  
+
   // Clear selected media file
   const clearMedia = () => {
     setUploadedMedia(null);
@@ -151,7 +166,7 @@ export function UploadForm() {
       mediaInputRef.current.value = "";
     }
   };
-  
+
   // Clear selected thumbnail
   const clearThumbnail = () => {
     setUploadedThumbnail(null);
@@ -160,12 +175,12 @@ export function UploadForm() {
       thumbnailInputRef.current.value = "";
     }
   };
-  
+
   // Simulate upload progress (in a real app, this would come from the actual upload)
   const simulateProgress = () => {
     setIsUploading(true);
     setUploadProgress(0);
-    
+
     const interval = setInterval(() => {
       setUploadProgress((prev) => {
         if (prev >= 95) {
@@ -175,48 +190,52 @@ export function UploadForm() {
         return prev + 5;
       });
     }, 300);
-    
+
     return () => clearInterval(interval);
   };
-  
+
   // Upload podcast mutation
   const uploadPodcastMutation = useMutation({
     mutationFn: async (data: UploadFormValues) => {
-      if (!uploadedMedia) {
-        throw new Error("Please select a media file");
-      }
-      
-      // In a real implementation, this would be a proper multipart form upload
-      // For now, we'll simulate the upload and API call
+      if (!uploadedMedia) throw new Error("Please select a media file");
+
       simulateProgress();
-      
-      // Create FormData for uploading files
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("mediaType", data.mediaType);
-      formData.append("media", uploadedMedia);
-      
-      if (data.tags) {
-        formData.append("tags", JSON.stringify(data.tags.split(',').map(tag => tag.trim())));
+
+      try {
+        const formData = new FormData();
+        formData.append("title", data.title);
+        formData.append("description", data.description);
+        formData.append("mediaType", data.mediaType);
+        formData.append("media", uploadedMedia);
+
+        if (data.tags) {
+          formData.append(
+            "tags",
+            JSON.stringify(data.tags.split(",").map((tag) => tag.trim()))
+          );
+        }
+
+        const response = await apiRequest("POST", "/api/podcasts", formData);
+        const podcast = await response.json();
+
+        if (uploadedThumbnail) {
+          const thumbForm = new FormData();
+          thumbForm.append("thumbnail", uploadedThumbnail);
+          await apiRequest(
+            "POST",
+            `/api/podcasts/${podcast.id}/thumbnail`,
+            thumbForm
+          );
+        }
+
+        setUploadProgress(100);
+        return podcast;
+      } catch (err) {
+        console.error("Upload failed:", err);
+        throw err instanceof Error
+          ? err
+          : new Error("Unexpected error during upload.");
       }
-      
-      // Make the API request to upload the podcast
-      const response = await apiRequest("POST", "/api/podcasts", formData);
-      const podcast = await response.json();
-      
-      // If a thumbnail was uploaded, make a separate request to add it
-      if (uploadedThumbnail) {
-        const thumbnailFormData = new FormData();
-        thumbnailFormData.append("thumbnail", uploadedThumbnail);
-        
-        await apiRequest("POST", `/api/podcasts/${podcast.id}/thumbnail`, thumbnailFormData);
-      }
-      
-      // Complete the progress
-      setUploadProgress(100);
-      
-      return podcast;
     },
     onSuccess: (podcast) => {
       // Reset form and state
@@ -226,16 +245,18 @@ export function UploadForm() {
       setThumbnailPreview(null);
       setIsUploading(false);
       setUploadProgress(0);
-      
+
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: [`/api/professors/${user?.id}/podcasts`] });
-      
+      queryClient.invalidateQueries({
+        queryKey: [`/api/professors/${user?.id}/podcasts`],
+      });
+
       // Show success toast
       toast({
         title: "Upload successful",
         description: "Your podcast has been uploaded successfully.",
       });
-      
+
       // Navigate to the manage content page
       setTimeout(() => {
         navigate("/professor/manage");
@@ -244,7 +265,7 @@ export function UploadForm() {
     onError: (error) => {
       setIsUploading(false);
       setUploadProgress(0);
-      
+
       toast({
         title: "Upload failed",
         description: error.message || "Something went wrong. Please try again.",
@@ -252,7 +273,7 @@ export function UploadForm() {
       });
     },
   });
-  
+
   // Handle form submission
   const onSubmit = (data: UploadFormValues) => {
     if (!uploadedMedia) {
@@ -263,10 +284,10 @@ export function UploadForm() {
       });
       return;
     }
-    
+
     uploadPodcastMutation.mutate(data);
   };
-  
+
   // Format file size for display
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -285,7 +306,7 @@ export function UploadForm() {
               <TabsTrigger value="content">Content Details</TabsTrigger>
               <TabsTrigger value="media">Media Files</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="content" className="space-y-6">
               <FormField
                 control={form.control}
@@ -294,7 +315,10 @@ export function UploadForm() {
                   <FormItem>
                     <FormLabel>Title</FormLabel>
                     <FormControl>
-                      <Input placeholder="Introduction to Psychology" {...field} />
+                      <Input
+                        placeholder="Introduction to Psychology"
+                        {...field}
+                      />
                     </FormControl>
                     <FormDescription>
                       The title of your educational podcast
@@ -303,7 +327,7 @@ export function UploadForm() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="description"
@@ -324,7 +348,7 @@ export function UploadForm() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="tags"
@@ -332,7 +356,10 @@ export function UploadForm() {
                   <FormItem>
                     <FormLabel>Tags (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="psychology, introduction, mental health" {...field} />
+                      <Input
+                        placeholder="psychology, introduction, mental health"
+                        {...field}
+                      />
                     </FormControl>
                     <FormDescription>
                       Comma-separated tags to help students find your content
@@ -341,7 +368,7 @@ export function UploadForm() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="mediaType"
@@ -359,7 +386,8 @@ export function UploadForm() {
                             <RadioGroupItem value="audio" />
                           </FormControl>
                           <FormLabel className="font-normal flex items-center">
-                            <Headphones className="mr-2 h-4 w-4" /> Audio Podcast
+                            <Headphones className="mr-2 h-4 w-4" /> Audio
+                            Podcast
                           </FormLabel>
                         </FormItem>
                         <FormItem className="flex items-center space-x-3 space-y-0">
@@ -380,13 +408,16 @@ export function UploadForm() {
                 )}
               />
             </TabsContent>
-            
+
             <TabsContent value="media" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Upload {mediaType === "audio" ? "Audio" : "Video"} File</CardTitle>
+                  <CardTitle>
+                    Upload {mediaType === "audio" ? "Audio" : "Video"} File
+                  </CardTitle>
                   <CardDescription>
-                    Select the {mediaType === "audio" ? "audio" : "video"} file you want to upload
+                    Select the {mediaType === "audio" ? "audio" : "video"} file
+                    you want to upload
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -404,7 +435,10 @@ export function UploadForm() {
                         Drop your {mediaType} file here or click to browse
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Supported formats: {mediaType === "audio" ? "MP3, WAV, AAC, OGG" : "MP4, WebM, MOV"}
+                        Supported formats:{" "}
+                        {mediaType === "audio"
+                          ? "MP3, WAV, AAC, OGG"
+                          : "MP4, WebM, MOV"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Maximum file size: 100MB
@@ -453,7 +487,7 @@ export function UploadForm() {
                   )}
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Upload Thumbnail (Optional)</CardTitle>
@@ -490,9 +524,9 @@ export function UploadForm() {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
                           {thumbnailPreview && (
-                            <img 
-                              src={thumbnailPreview} 
-                              alt="Thumbnail preview" 
+                            <img
+                              src={thumbnailPreview}
+                              alt="Thumbnail preview"
                               className="w-16 h-16 object-cover rounded mr-4"
                             />
                           )}
@@ -525,12 +559,14 @@ export function UploadForm() {
               </Card>
             </TabsContent>
           </Tabs>
-          
+
           {isUploading && (
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Uploading...</span>
-                <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                <span className="text-sm text-muted-foreground">
+                  {uploadProgress}%
+                </span>
               </div>
               <Progress value={uploadProgress} className="h-2" />
               <p className="text-xs text-muted-foreground">
@@ -538,7 +574,7 @@ export function UploadForm() {
               </p>
             </div>
           )}
-          
+
           <div className="flex justify-end space-x-2">
             <Button
               type="button"
@@ -548,8 +584,8 @@ export function UploadForm() {
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isUploading || uploadPodcastMutation.isPending}
             >
               {(isUploading || uploadPodcastMutation.isPending) && (

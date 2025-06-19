@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Podcast, Users, BarChart } from "lucide-react";
 import UploadPodcast from "./UploadPodcast";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import PodcastList from "../shared/PodcastList";
+import {supabase} from './../../lib/supabase.ts';
 
 export function ProfessorDashboard() {
   const { user } = useAuth();
@@ -17,9 +24,13 @@ export function ProfessorDashboard() {
     queryKey: ["/api/professors", user?.id, "podcasts"],
     queryFn: async () => {
       if (!user?.id) return [];
-      const response = await fetch(`/api/professors/${user.id}/podcasts`);
-      if (!response.ok) throw new Error("Failed to fetch podcasts");
-      return response.json();
+      const { data, error } = await supabase
+        .from("podcasts")
+        .select("*")
+        .eq("creator_id", user.id);
+
+      if (error) throw new Error(error.message);
+      return data;
     },
     enabled: !!user?.id,
   });
@@ -32,12 +43,14 @@ export function ProfessorDashboard() {
     <div className="container py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Professor Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Professor Dashboard
+          </h1>
           <p className="text-muted-foreground mt-1">
             Manage your educational content and track student engagement.
           </p>
         </div>
-        
+
         {activeTab !== "upload" && (
           <Button onClick={() => setActiveTab("upload")}>
             <Plus className="mr-2 h-4 w-4" />
@@ -53,53 +66,83 @@ export function ProfessorDashboard() {
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="overview" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Podcasts</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Podcasts
+                </CardTitle>
                 <Podcast className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{podcasts.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  +{Math.max(0, podcasts.filter(p => 
-                    new Date(p.createdAt).getMonth() === new Date().getMonth()
-                  ).length)} this month
+                  +
+                  {Math.max(
+                    0,
+                    podcasts.filter(
+                      (p) =>
+                        new Date(p.createdAt).getMonth() ===
+                        new Date().getMonth()
+                    ).length
+                  )}{" "}
+                  this month
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Listeners</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Listeners
+                </CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {/* Calculate unique listeners across all podcasts */}
-                  {new Set(podcasts.flatMap(p => p.views || []).map(v => v.userId)).size || 0}
+                  {new Set(
+                    podcasts.flatMap((p) => p.views || []).map((v) => v.userId)
+                  ).size || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Unique students who accessed your content
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Engagement Rate
+                </CardTitle>
                 <BarChart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {/* Calculate based on likes + comments divided by views */}
-                  {podcasts.length 
-                    ? Math.round((podcasts.reduce((sum, p) => 
-                      sum + ((p.likes?.length || 0) + (p.comments?.length || 0)), 0) / 
-                      Math.max(1, podcasts.reduce((sum, p) => sum + (p.views?.length || 0), 0))) * 100)
-                    : 0}%
+                  {podcasts.length
+                    ? Math.round(
+                        (podcasts.reduce(
+                          (sum, p) =>
+                            sum +
+                            ((p.likes?.length || 0) +
+                              (p.comments?.length || 0)),
+                          0
+                        ) /
+                          Math.max(
+                            1,
+                            podcasts.reduce(
+                              (sum, p) => sum + (p.views?.length || 0),
+                              0
+                            )
+                          )) *
+                          100
+                      )
+                    : 0}
+                  %
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Likes and comments per view
@@ -107,7 +150,7 @@ export function ProfessorDashboard() {
               </CardContent>
             </Card>
           </div>
-          
+
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="col-span-1">
               <CardHeader>
@@ -117,15 +160,15 @@ export function ProfessorDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <PodcastList 
-                  podcasts={podcasts.slice(0, 5)} 
-                  emptyMessage="You haven't uploaded any podcasts yet." 
+                <PodcastList
+                  podcasts={podcasts.slice(0, 5)}
+                  emptyMessage="You haven't uploaded any podcasts yet."
                   variant="compact"
                 />
-                
+
                 {podcasts.length > 5 && (
-                  <Button 
-                    variant="link" 
+                  <Button
+                    variant="link"
                     className="mt-4 p-0"
                     onClick={() => setActiveTab("podcasts")}
                   >
@@ -134,7 +177,7 @@ export function ProfessorDashboard() {
                 )}
               </CardContent>
             </Card>
-            
+
             <Card className="col-span-1">
               <CardHeader>
                 <CardTitle>Popular Content</CardTitle>
@@ -143,10 +186,12 @@ export function ProfessorDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <PodcastList 
-                  podcasts={[...podcasts].sort((a, b) => 
-                    (b.views?.length || 0) - (a.views?.length || 0)
-                  ).slice(0, 5)} 
+                <PodcastList
+                  podcasts={[...podcasts]
+                    .sort(
+                      (a, b) => (b.views?.length || 0) - (a.views?.length || 0)
+                    )
+                    .slice(0, 5)}
                   emptyMessage="No engagement data available yet."
                   variant="compact"
                 />
@@ -154,7 +199,7 @@ export function ProfessorDashboard() {
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="podcasts">
           <Card>
             <CardHeader>
@@ -164,8 +209,8 @@ export function ProfessorDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PodcastList 
-                podcasts={podcasts} 
+              <PodcastList
+                podcasts={podcasts}
                 emptyMessage="You haven't uploaded any podcasts yet."
                 variant="list"
                 showActions
@@ -173,11 +218,11 @@ export function ProfessorDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="upload">
           <UploadPodcast />
         </TabsContent>
-        
+
         <TabsContent value="analytics">
           <Card>
             <CardHeader>
@@ -192,8 +237,8 @@ export function ProfessorDashboard() {
                   <p className="text-muted-foreground">
                     You need to upload podcasts to see analytics.
                   </p>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="mt-4"
                     onClick={() => setActiveTab("upload")}
                   >

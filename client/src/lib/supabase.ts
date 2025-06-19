@@ -1,19 +1,22 @@
-// client/src/lib/supabase.ts
+// supabase.ts - compatible fix for Vite (frontend)
+
 import { createClient } from "@supabase/supabase-js";
 
-// THESE MUST MATCH your .env keys (exactly)
-const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Fix: import.meta.env only works when running Vite (frontend)
+// If you run this file in Node (Express), there is no import.meta.env
+// So use fallback to process.env for SSR / Node support
 
-// DEBUG: log them so you can see in the browser console
-console.log("🏓 supabase env:", { supabaseUrl, supabaseAnonKey });
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  throw new Error("🚨 Missing VITE_SUPABASE_URL in import.meta.env");
-}
-if (!supabaseAnonKey) {
-  throw new Error("🚨 Missing VITE_SUPABASE_ANON_KEY in import.meta.env");
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase environment variables.");
 }
 
-// Now this will only run if both are real, non-empty strings:
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});

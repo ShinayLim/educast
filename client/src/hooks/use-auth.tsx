@@ -13,84 +13,87 @@ import type { User as SBUser, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
-
 // ────────────────────────────────────────────────────────────
 // 1) Your “shape” for a logged-in user
 // ────────────────────────────────────────────────────────────
 export type SelectUser = {
-  id:       string;
-  email:    string;
+  id: string;
+  email: string;
   fullName: string;
   username: string;
-  role:     "student" | "professor";
+  role: "student" | "professor";
 };
-
 
 // ────────────────────────────────────────────────────────────
 // 2) Zod schemas + resolvers for Register & Login forms
 // ────────────────────────────────────────────────────────────
 export const registerSchema = z.object({
   username: z.string().min(1),
-  email:    z.string().email(),
+  email: z.string().email(),
   fullName: z.string().min(2),
   password: z.string().min(8),
-  role:     z.enum(["professor", "student"]),
+  role: z.enum(["professor", "student"]),
 });
 export type RegisterData = z.infer<typeof registerSchema>;
 export const registerResolver = zodResolver(registerSchema);
 
 export const loginSchema = z.object({
-  email:    z.string().email(),
+  email: z.string().email(),
   password: z.string().min(1),
 });
 export type LoginData = z.infer<typeof loginSchema>;
 export const loginResolver = zodResolver(loginSchema);
 
-
 // ────────────────────────────────────────────────────────────
 // 3) Context type
 // ────────────────────────────────────────────────────────────
 interface AuthContextType {
-  user:      SelectUser | null;
+  user: SelectUser | null;
   isLoading: boolean;
-  error:     Error | null;
+  error: Error | null;
 
   // expose these async functions to your forms/components:
-  register:  (data: RegisterData) => Promise<SelectUser>;
-  login:     (data: LoginData)   => Promise<SelectUser>;
-  logout:    ()                   => Promise<void>;
+  register: (data: RegisterData) => Promise<SelectUser>;
+  login: (data: LoginData) => Promise<SelectUser>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 
 // ────────────────────────────────────────────────────────────
 // 4) The AuthProvider
 // ────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  const [user,    setUser]    = useState<SelectUser | null>(null);
+  const [user, setUser] = useState<SelectUser | null>(null);
   const [isLoading, setLoading] = useState(true);
-  const [error,   setError]   = useState<Error | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
-  // helper: given a Supabase User, fetch your `profiles` row and merge
   async function fetchProfile(u: SBUser): Promise<SelectUser> {
     if (!u.email) throw new Error("Supabase user has no email");
 
-    const { data: profile, error: pErr } = await supabase
-      .from("profiles")
-      .select("username, full_name, role")
-      .eq("id", u.id)
-      .single();
-    if (pErr) throw pErr;
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("username, full_name, role")
+        .eq("id", u.id)
+        .single();
 
-    return {
-      id:       u.id,
-      email:    u.email,
-      username: profile.username!,
-      fullName: profile.full_name!,
-      role:     profile.role as SelectUser["role"],
-    };
+      if (error || !profile) {
+        throw new Error(error?.message || "Profile not found for user.");
+      }
+
+      return {
+        id: u.id,
+        email: u.email,
+        username: profile.username!,
+        fullName: profile.full_name!,
+        role: profile.role as SelectUser["role"],
+      };
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+      throw err instanceof Error ? err : new Error("Unknown error");
+    }
   }
 
   useEffect(() => {
@@ -133,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-
   // ────────────────────────────────────────────────────────────
   // 5) React-Query mutations for register / login / logout
   // ────────────────────────────────────────────────────────────
@@ -142,21 +144,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (formData: RegisterData) => {
       // 1) create the Auth user
       const { data: sData, error: sErr } = await supabase.auth.signUp({
-        email:    formData.email,
+        email: formData.email,
         password: formData.password,
       });
       if (sErr) throw sErr;
 
       // 2) write your extra profile columns
       const u = sData.user!;
-      const { error: pErr } = await supabase
-        .from("profiles")
-        .insert({
-          id:         u.id,
-          username:   formData.username,
-          full_name:  formData.fullName,
-          role:       formData.role,
-        });
+      const { error: pErr } = await supabase.from("profiles").insert({
+        id: u.id,
+        username: formData.username,
+        full_name: formData.fullName,
+        role: formData.role,
+      });
       if (pErr) throw pErr;
 
       // return the full shape
@@ -182,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (formData: LoginData) => {
       const { data: lData, error: lErr } =
         await supabase.auth.signInWithPassword({
-          email:    formData.email,
+          email: formData.email,
           password: formData.password,
         });
       if (lErr) throw lErr;
@@ -233,17 +233,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     error,
     register: registerMutation.mutateAsync,
-    login:    loginMutation.mutateAsync,
-    logout:   logoutMutation.mutateAsync,
+    login: loginMutation.mutateAsync,
+    logout: logoutMutation.mutateAsync,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
 
 // ────────────────────────────────────────────────────────────
 // 7) Hook to consume the context

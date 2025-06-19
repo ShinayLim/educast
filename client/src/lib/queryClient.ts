@@ -5,9 +5,6 @@ import { QueryClient, QueryFunction, useQuery } from "@tanstack/react-query";
 // 1) Centralize your API base URL
 //
 const API_BASE = import.meta.env.VITE_API_BASE;
-if (!API_BASE) {
-  throw new Error("Missing VITE_API_BASE in your .env");
-}
 
 //
 // 2) Core fetch+JSON+error+credentials helper
@@ -19,11 +16,15 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export async function apiRequest(
+export async function apiRequest<T>(
   method: string,
   path: string,
   data?: unknown
-): Promise<Response> {
+): Promise<T> {
+  if (!API_BASE) {
+    throw new Error("Missing VITE_API_BASE in your .env");
+  }
+
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
     method,
@@ -31,8 +32,9 @@ export async function apiRequest(
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
+
   await throwIfResNotOk(res);
-  return res;
+  return res.json() as Promise<T>;
 }
 
 //
@@ -46,6 +48,18 @@ export function getQueryFn<T>(
   const { on401 } = opts;
   return async ({ queryKey }) => {
     const path = queryKey[0] as string;
+
+    // 👇 Important: Skip known keys that do not need this!
+    if (path.startsWith("/podcasts/professor/")) {
+      throw new Error(
+        "queryClient: do not call /podcasts/professor here — use Supabase client directly"
+      );
+    }
+
+    if (!API_BASE) {
+      throw new Error("Missing VITE_API_BASE in your .env");
+    }
+
     const res = await fetch(`${API_BASE}${path}`, {
       credentials: "include",
     });
@@ -70,8 +84,6 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       retry: false,
     },
-    // (we recommend *not* setting a global `mutationFn` here;
-    // just call `apiRequest()` inside each useMutation for clarity)
   },
 });
 
@@ -79,7 +91,7 @@ export const queryClient = new QueryClient({
 // 5) A small `useSession()` hook that gracefully returns `null` on 401
 //
 export function useSession() {
-  return useQuery<{ id: number; email: string }>({
+  return useQuery<{ id: number; email: string } | null>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,

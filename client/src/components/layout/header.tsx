@@ -11,8 +11,8 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { user, logout } = useAuth();        // <-- pull out `logout()`
-  const [, navigate]   = useLocation();
+  const { user, logout } = useAuth();
+  const [, navigate] = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // If no user, don’t render header (or render a minimal one)
@@ -21,10 +21,14 @@ export function Header({ onMenuClick }: HeaderProps) {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await logout();           // <-- calls supabase.auth.signOut()
-      navigate("/auth");        // or wherever your login page lives
-    } catch (err) {
-      console.error("Logout failed:", err);
+      await logout(); // calls supabase.auth.signOut() under the hood
+      navigate("/auth"); // redirect after successful logout
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Logout failed:", err.message);
+      } else {
+        console.error("Logout failed with unknown error:", err);
+      }
     } finally {
       setLoggingOut(false);
     }
@@ -35,7 +39,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     if (user.fullName) {
       return user.fullName
         .split(" ")
-        .map(n => n[0])
+        .map((n) => n[0])
         .join("")
         .slice(0, 2)
         .toUpperCase();
@@ -48,7 +52,12 @@ export function Header({ onMenuClick }: HeaderProps) {
       <div className="container flex h-16 items-center justify-between">
         {/* left: menu button & brand */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMenuClick}
+            className="md:hidden"
+          >
             <Menu className="h-6 w-6" />
             <span className="sr-only">Toggle menu</span>
           </Button>
@@ -81,7 +90,10 @@ export function Header({ onMenuClick }: HeaderProps) {
 
           <div className="flex items-center gap-2">
             <Avatar>
-              <AvatarImage src={undefined /* or user.avatarUrl */} alt={user.username} />
+              <AvatarImage
+                src={undefined /* or user.avatarUrl */}
+                alt={user.username}
+              />
               <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
 
@@ -95,7 +107,9 @@ export function Header({ onMenuClick }: HeaderProps) {
                 onClick={handleLogout}
                 disabled={loggingOut}
               >
-                {loggingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {loggingOut && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Logout
               </Button>
             </div>

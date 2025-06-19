@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+// Define Podcast type
 type Podcast = {
   id: string;
   title: string;
@@ -16,12 +17,15 @@ type Podcast = {
   created_at?: string;
 };
 
+// Define the prop types for PodcastList
 type PodcastListProps = {
   podcasts: Podcast[];
   emptyMessage?: string;
-  variant?: "default" | "list";
+  variant?: "default" | "list" | "compact"; // ✅ allow "compact"
+  showActions?: boolean; // ✅ allow showActions
 };
 
+// Extract YouTube video ID from a URL
 function getYoutubeId(url: string): string | null {
   const regExp =
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^\s&?]+)/;
@@ -29,9 +33,11 @@ function getYoutubeId(url: string): string | null {
   return match ? match[1] : null;
 }
 
+// The actual PodcastList component
 export default function PodcastList({
   podcasts,
   emptyMessage = "No podcasts found",
+  variant = "default",
 }: PodcastListProps) {
   if (!podcasts.length) {
     return (
@@ -43,7 +49,7 @@ export default function PodcastList({
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {podcasts.map((podcast) => {
+      {podcasts.map((podcast: Podcast) => {
         const videoId = getYoutubeId(podcast.youtube_url);
 
         return (
@@ -57,7 +63,7 @@ export default function PodcastList({
               </CardDescription>
               {(podcast.tags ?? []).length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {(podcast.tags ?? []).map((tag, idx) => (
+                  {(podcast.tags ?? []).map((tag: string, idx: number) => (
                     <Badge key={idx} variant="secondary">
                       {tag}
                     </Badge>

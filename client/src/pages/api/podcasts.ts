@@ -1,15 +1,17 @@
 // client/src/lib/podcasts.ts
-import { supabase } from './../../lib/supabase';
+import { supabase } from "./../../lib/supabase";
 
 export type PodcastInput = {
   title: string;
   description: string;
   youtubeUrl: string;
   tags?: string[];
+  professorId: string; // ✅ add professorId
+  mediaType: "audio" | "video"; // ✅ add mediaType
 };
 
 export async function uploadPodcast(podcast: PodcastInput) {
-  const { title, description, youtubeUrl, tags = [] } = podcast;
+  const { title, description, youtubeUrl, tags = [], professorId, mediaType } = podcast;
 
   // Validate YouTube URL
   const isValidYoutubeUrl = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(youtubeUrl);
@@ -23,6 +25,8 @@ export async function uploadPodcast(podcast: PodcastInput) {
       description,
       youtube_url: youtubeUrl,
       tags,
+      professorId,      // ✅ fix: save professorId
+      mediaType,        // ✅ fix: save mediaType
     },
   ]);
 

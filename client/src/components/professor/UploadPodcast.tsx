@@ -1,3 +1,4 @@
+import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,6 @@ import {
 } from "@/components/ui/form";
 import { supabase } from "@/lib/supabase";
 
-// ✅ YouTube URL regex validation
 const uploadPodcastSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
@@ -50,6 +50,7 @@ function getYoutubeId(url: string): string | null {
 }
 
 export default function UploadPodcast() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -72,23 +73,35 @@ export default function UploadPodcast() {
             .filter(Boolean)
         : [];
 
-      const { error } = await supabase.from("podcasts").insert([
-        {
-          title: data.title,
-          description: data.description,
-          youtube_url: data.youtubeUrl,
-          tags: data.tags?.split(",").map((t) => t.trim()),
-        },
-      ]);
+      try {
+        const { error } = await supabase.from("podcasts").insert([
+          {
+            title: data.title,
+            description: data.description,
+            youtube_url: data.youtubeUrl,
+            tags: tagsArray,
+            professorId: user?.id,          // ✅ fix: assign professorId
+            mediaType: "video",             // ✅ fix: assign mediaType
+          },
+        ]);
 
-      if (error) {
-        throw new Error(error.message || "Failed to upload podcast");
+        if (error) {
+          throw new Error(error.message || "Failed to upload podcast");
+        }
+
+        return { success: true };
+      } catch (err) {
+        console.error("Error uploading YouTube podcast:", err);
+        throw err instanceof Error
+          ? err
+          : new Error("Unexpected upload error.");
       }
-
-      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/podcasts"] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/professors/${user?.id}/podcasts`],
+      });
       toast({
         title: "Podcast Uploaded",
         description: "Your YouTube podcast is now available.",
