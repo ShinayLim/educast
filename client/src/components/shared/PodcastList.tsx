@@ -3,8 +3,9 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
+  CardTitle, 
 } from "@/components/ui/card";
+import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 
 // Define Podcast type
@@ -56,7 +57,12 @@ export default function PodcastList({
           <Card key={podcast.id}>
             <CardHeader>
               <CardTitle className="text-lg font-semibold">
-                {podcast.title}
+                <Link
+                  href={`/player/${podcast.id}`}
+                  className="font-medium hover:underline"
+                >
+                  {podcast.title}
+                </Link>
               </CardTitle>
               <CardDescription className="line-clamp-2 text-muted-foreground">
                 {podcast.description}

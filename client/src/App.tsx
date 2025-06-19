@@ -12,6 +12,7 @@ import SearchPage from "@/pages/search-page";
 import UploadPage from "@/pages/professor/upload-page";
 import ManageContentPage from "@/pages/professor/manage-content";
 import LibraryPage from "@/pages/student/library-page";
+import PlayerPage from "@/pages/player/PlayerPage";  // ✅ add PlayerPage
 import { AuthProvider } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -27,6 +28,7 @@ function Router() {
       <ProtectedRoute path="/professor/upload" component={UploadPage} />
       <ProtectedRoute path="/professor/manage" component={ManageContentPage} />
       <ProtectedRoute path="/student/library" component={LibraryPage} />
+      <ProtectedRoute path="/player/:id" component={PlayerPage} />  {/* ✅ add this */}
       <Route component={NotFound} />
     </Switch>
   );
