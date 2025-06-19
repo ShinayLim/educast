@@ -42,14 +42,12 @@ export default function PlayerPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("podcasts_comments")
-        .select(
-          `
-        *,
-        profiles ( full_name, username )
-      `
-        )
+        .select(`
+          *,
+          profiles ( full_name, username )
+        `)
         .eq("podcast_id", id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
 
       if (error) {
         throw new Error(error.message || "Failed to fetch comments");
@@ -61,12 +59,13 @@ export default function PlayerPage() {
   });
 
   const commentMutation = useMutation({
-    mutationFn: async (comment: string) => {
+    mutationFn: async ({ comment, parentId }: { comment: string; parentId?: string }) => {
       const { error } = await supabase.from("podcasts_comments").insert([
         {
           podcast_id: id,
           user_id: user?.id,
           comment,
+          parent_id: parentId || null,
         },
       ]);
 
@@ -77,34 +76,6 @@ export default function PlayerPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/player/${id}/comments`] });
       setNewComment("");
-    },
-  });
-
-  const likeVideoMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("increment_video_like", {
-        podcast_row_id: id,
-      });
-      if (error) {
-        throw new Error(error.message || "Failed to like video");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/player/${id}`] });
-    },
-  });
-
-  const dislikeVideoMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("increment_video_dislike", {
-        podcast_row_id: id,
-      });
-      if (error) {
-        throw new Error(error.message || "Failed to dislike video");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/player/${id}`] });
     },
   });
 
@@ -137,13 +108,7 @@ export default function PlayerPage() {
   });
 
   const editCommentMutation = useMutation({
-    mutationFn: async ({
-      commentId,
-      newContent,
-    }: {
-      commentId: string;
-      newContent: string;
-    }) => {
+    mutationFn: async ({ commentId, newContent }: { commentId: string; newContent: string }) => {
       const { error } = await supabase
         .from("podcasts_comments")
         .update({ comment: newContent, updated_at: new Date().toISOString() })
@@ -160,14 +125,19 @@ export default function PlayerPage() {
     },
   });
 
-  const [playing, setPlaying] = useState(true);
   const [newComment, setNewComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
 
   const getYoutubeUrl = (url: string | null | undefined) => {
     if (!url) return "";
     return url;
+  };
+
+  const getReplies = (parentId: string) => {
+    return comments.filter((c) => c.parent_id === parentId);
   };
 
   return (
@@ -186,35 +156,16 @@ export default function PlayerPage() {
                 <h1 className="text-3xl font-bold">{podcast.title}</h1>
                 <p className="text-muted-foreground">{podcast.description}</p>
 
-                {/* Like/Dislike video */}
-                <div className="flex gap-2 mb-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => likeVideoMutation.mutate()}
-                  >
-                    👍 Like ({podcast.likes || 0})
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => dislikeVideoMutation.mutate()}
-                  >
-                    👎 Dislike ({podcast.dislikes || 0})
-                  </Button>
-                </div>
-
                 <div className="rounded border border-border overflow-hidden">
                   <ReactPlayer
                     url={getYoutubeUrl(podcast.youtube_url)}
                     controls
-                    playing={playing}
+                    playing={true}
                     width="100%"
                     height="480px"
                   />
                 </div>
 
-                {/* Add comment */}
                 <div className="mt-8 space-y-4">
                   <h3 className="text-xl font-bold">Comments</h3>
 
@@ -225,9 +176,12 @@ export default function PlayerPage() {
                   />
 
                   <Button
-                    onClick={() => commentMutation.mutate(newComment)}
+                    onClick={() =>
+                      commentMutation.mutate({ comment: newComment })
+                    }
                     disabled={
-                      !newComment.trim() || commentMutation.status === "pending"
+                      !newComment.trim() ||
+                      commentMutation.status === "pending"
                     }
                   >
                     {commentMutation.status === "pending"
@@ -235,18 +189,18 @@ export default function PlayerPage() {
                       : "Post Comment"}
                   </Button>
 
-                  {/* Comments List */}
                   {loadingComments ? (
                     <div className="text-center py-4">Loading comments...</div>
                   ) : comments.length > 0 ? (
                     <div className="space-y-4">
-                      {comments.map((c) => (
-                        <div
-                          key={c.id}
-                          className="p-4 border rounded space-y-2 bg-muted"
-                        >
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium">
+                      {comments
+                        .filter((c) => !c.parent_id)
+                        .map((c) => (
+                          <div
+                            key={c.id}
+                            className="p-4 border rounded space-y-2 bg-muted"
+                          >
+                            <div className="flex justify-between items-center">
                               <p className="font-medium">
                                 {c.user_id === user?.id
                                   ? "You"
@@ -254,80 +208,148 @@ export default function PlayerPage() {
                                     c.profiles?.username ||
                                     "Unknown User"}
                               </p>
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(c.created_at).toLocaleString()}
-                            </p>
-                          </div>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(c.created_at).toLocaleString()}
+                              </p>
+                            </div>
 
-                          {editingCommentId === c.id ? (
-                            <>
-                              <Textarea
-                                value={editingContent}
-                                onChange={(e) =>
-                                  setEditingContent(e.target.value)
-                                }
-                              />
-                              <div className="flex gap-2 mt-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    editCommentMutation.mutate({
-                                      commentId: c.id,
-                                      newContent: editingContent,
-                                    })
+                            {editingCommentId === c.id ? (
+                              <>
+                                <Textarea
+                                  value={editingContent}
+                                  onChange={(e) =>
+                                    setEditingContent(e.target.value)
                                   }
-                                >
-                                  Save
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setEditingCommentId(null)}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <p>{c.comment}</p>
-                              <div className="flex gap-2 mt-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    likeCommentMutation.mutate(c.id)
-                                  }
-                                >
-                                  👍 {c.likes}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    dislikeCommentMutation.mutate(c.id)
-                                  }
-                                >
-                                  👎 {c.dislikes}
-                                </Button>
-                                {c.user_id === user?.id && (
+                                />
+                                <div className="flex gap-2 mt-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      editCommentMutation.mutate({
+                                        commentId: c.id,
+                                        newContent: editingContent,
+                                      })
+                                    }
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setEditingCommentId(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <p>{c.comment}</p>
+                                <div className="flex gap-2 mt-2">
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    onClick={() =>
+                                      likeCommentMutation.mutate(c.id)
+                                    }
+                                  >
+                                    👍 {c.likes}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      dislikeCommentMutation.mutate(c.id)
+                                    }
+                                  >
+                                    👎 {c.dislikes}
+                                  </Button>
+                                  {c.user_id === user?.id && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setEditingCommentId(c.id);
+                                        setEditingContent(c.comment);
+                                      }}
+                                    >
+                                      ✏️ Edit
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setReplyingTo(c.id)}
+                                  >
+                                    💬 Reply
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+
+                            {getReplies(c.id).length > 0 && (
+                              <div className="mt-3 pl-4 border-l space-y-2">
+                                {getReplies(c.id).map((r) => (
+                                  <div
+                                    key={r.id}
+                                    className="p-3 bg-background rounded border"
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <p className="font-medium">
+                                        {r.user_id === user?.id
+                                          ? "You"
+                                          : r.profiles?.full_name ||
+                                            r.profiles?.username ||
+                                            "Unknown User"}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {new Date(r.created_at).toLocaleString()}
+                                      </p>
+                                    </div>
+                                    <p>{r.comment}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {replyingTo === c.id && (
+                              <div className="mt-3 space-y-2">
+                                <Textarea
+                                  placeholder="Write a reply..."
+                                  value={replyContent}
+                                  onChange={(e) =>
+                                    setReplyContent(e.target.value)
+                                  }
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
                                     onClick={() => {
-                                      setEditingCommentId(c.id);
-                                      setEditingContent(c.comment);
+                                      commentMutation.mutate({
+                                        comment: replyContent,
+                                        parentId: replyingTo!,
+                                      });
+                                      setReplyingTo(null);
+                                      setReplyContent("");
                                     }}
                                   >
-                                    ✏️ Edit
+                                    Reply
                                   </Button>
-                                )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setReplyingTo(null);
+                                      setReplyContent("");
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
                               </div>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                            )}
+                          </div>
+                        ))}
                     </div>
                   ) : (
                     <p className="text-muted-foreground">No comments yet.</p>
