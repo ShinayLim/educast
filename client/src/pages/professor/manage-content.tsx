@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Podcast } from "@shared/schema";
-import { Loader2, Pencil, Trash2, Upload, Eye, BarChart2 } from "lucide-react";
+import { Loader2, Pencil, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
@@ -95,18 +95,12 @@ export default function ManageContentPage() {
     });
   };
 
-  const formatDuration = (seconds: number | undefined | null) => {
-    if (!seconds) return "--:--";
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes % 60}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  const filteredAudio = podcasts.filter((p) => p.mediaType?.toLowerCase() === "audio");
-  const filteredVideo = podcasts.filter((p) => p.mediaType?.toLowerCase() === "video");
+  const filteredAudio = podcasts.filter(
+    (p) => p.mediaType?.toLowerCase() === "audio"
+  );
+  const filteredVideo = podcasts.filter(
+    (p) => p.mediaType?.toLowerCase() === "video"
+  );
 
   const renderPodcastTable = (list: Podcast[]) => (
     <table className="w-full text-left border border-border rounded">
@@ -115,6 +109,7 @@ export default function ManageContentPage() {
           <th className="p-3">Title</th>
           <th className="p-3">Type</th>
           <th className="p-3">Created</th>
+          <th className="p-3">Comments</th>
           <th className="p-3 text-center">Actions</th>
         </tr>
       </thead>
@@ -123,16 +118,18 @@ export default function ManageContentPage() {
           <tr key={podcast.id} className="border-t border-border">
             <td className="p-3">{podcast.title}</td>
             <td className="p-3 capitalize">{podcast.mediaType}</td>
-            <td className="p-3">{formatDate(podcast.createdAt)}</td>
+            <td className="p-3">{formatDate(podcast.created_at)}</td>
             <td className="p-3 text-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => console.log("Edit podcast", podcast.id)}
-                className="mr-2"
-              >
-                <Pencil className="w-4 h-4" />
+              <PodcastCommentCount podcastId={podcast.id} />
+            </td>
+            <td className="p-3 text-center space-x-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/professor/edit/${podcast.id}`}>
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </Link>
               </Button>
+
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -175,7 +172,9 @@ export default function ManageContentPage() {
             <div className="flex justify-between items-center mb-8">
               <div>
                 <h1 className="text-3xl font-bold mb-1">Manage Content</h1>
-                <p className="text-muted-foreground">View, edit and manage your educational content</p>
+                <p className="text-muted-foreground">
+                  View, edit and manage your educational content
+                </p>
               </div>
               <Button asChild>
                 <Link href="/professor/upload">
@@ -199,14 +198,7 @@ export default function ManageContentPage() {
                 ) : podcasts.length > 0 ? (
                   renderPodcastTable(podcasts)
                 ) : (
-                  <div className="bg-card border border-border rounded-lg p-8 text-center">
-                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-bold mb-2">No content yet</h3>
-                    <p className="text-muted-foreground mb-6">You haven't uploaded any content yet.</p>
-                    <Button asChild>
-                      <Link href="/professor/upload">Upload Content</Link>
-                    </Button>
-                  </div>
+                  <EmptyState message="No content yet" />
                 )}
               </TabsContent>
 
@@ -218,14 +210,7 @@ export default function ManageContentPage() {
                 ) : filteredAudio.length > 0 ? (
                   renderPodcastTable(filteredAudio)
                 ) : (
-                  <div className="bg-card border border-border rounded-lg p-8 text-center">
-                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-bold mb-2">No audio content</h3>
-                    <p className="text-muted-foreground mb-6">You haven't uploaded any audio content yet.</p>
-                    <Button asChild>
-                      <Link href="/professor/upload">Upload Audio Content</Link>
-                    </Button>
-                  </div>
+                  <EmptyState message="No audio content" />
                 )}
               </TabsContent>
 
@@ -237,14 +222,7 @@ export default function ManageContentPage() {
                 ) : filteredVideo.length > 0 ? (
                   renderPodcastTable(filteredVideo)
                 ) : (
-                  <div className="bg-card border border-border rounded-lg p-8 text-center">
-                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-bold mb-2">No video content</h3>
-                    <p className="text-muted-foreground mb-6">You haven't uploaded any video content yet.</p>
-                    <Button asChild>
-                      <Link href="/professor/upload">Upload Video Content</Link>
-                    </Button>
-                  </div>
+                  <EmptyState message="No video content" />
                 )}
               </TabsContent>
             </Tabs>
@@ -254,4 +232,41 @@ export default function ManageContentPage() {
       </div>
     </div>
   );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="bg-card border border-border rounded-lg p-8 text-center">
+      <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+      <h3 className="text-xl font-bold mb-2">{message}</h3>
+      <p className="text-muted-foreground mb-6">
+        You haven't uploaded any content yet.
+      </p>
+      <Button asChild>
+        <Link href="/professor/upload">Upload Content</Link>
+      </Button>
+    </div>
+  );
+}
+
+function PodcastCommentCount({ podcastId }: { podcastId: number }) {
+  const { data, isLoading } = useQuery<number>({
+    queryKey: [`/podcasts/${podcastId}/comments-count`],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("podcasts_comments")
+        .select("id", { count: "exact", head: true })
+        .eq("podcast_id", podcastId);
+
+      if (error) {
+        console.error("Error fetching comment count:", error);
+        return 0;
+      }
+
+      return count ?? 0;
+    },
+  });
+
+  if (isLoading) return <span>Loading...</span>;
+  return <span>{data} comments</span>;
 }
