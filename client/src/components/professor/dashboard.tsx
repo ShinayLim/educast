@@ -141,10 +141,10 @@ export function ProfessorDashboard() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4">
             <Button asChild className="w-full justify-start">
-              <Link href="/professor/upload">
+              {/* <Link href="/professor/upload">
                 <Headphones className="mr-2 h-5 w-5" />
                 Upload New Audio Podcast
-              </Link>
+              </Link> */}
             </Button>
             <Button asChild className="w-full justify-start">
               <Link href="/professor/upload">
