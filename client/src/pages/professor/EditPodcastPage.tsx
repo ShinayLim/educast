@@ -44,12 +44,23 @@ export default function EditPodcastPage() {
     enabled: !!id,
   });
 
-  const { data: comments = [] } = useQuery({
-    queryKey: [`/podcast/${id}/comments`],
+  const { data: comments = [], isLoading: commentsLoading } = useQuery({
+    queryKey: [`/professor/podcast/${id}/comments`],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("podcasts_comments")
-        .select("id, content, user_id, created_at, likes, dislikes, parent_id, profiles(username)")
+        .select(
+          `
+        id,
+        comment,
+        created_at,
+        user_id,
+        parent_id,
+        student_name,
+        likes,
+        dislikes
+      `
+        )
         .eq("podcast_id", id)
         .order("created_at", { ascending: true });
 
@@ -131,7 +142,9 @@ export default function EditPodcastPage() {
               <>
                 <div className="space-y-4">
                   <div>
-                    <label className="block mb-1 text-sm font-medium">Title</label>
+                    <label className="block mb-1 text-sm font-medium">
+                      Title
+                    </label>
                     <Input
                       value={formData.title}
                       onChange={(e) =>
@@ -141,27 +154,39 @@ export default function EditPodcastPage() {
                   </div>
 
                   <div>
-                    <label className="block mb-1 text-sm font-medium">Description</label>
+                    <label className="block mb-1 text-sm font-medium">
+                      Description
+                    </label>
                     <Textarea
                       value={formData.description}
                       onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
                       }
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1 text-sm font-medium">YouTube URL</label>
+                    <label className="block mb-1 text-sm font-medium">
+                      YouTube URL
+                    </label>
                     <Input
                       value={formData.youtube_url}
                       onChange={(e) =>
-                        setFormData({ ...formData, youtube_url: e.target.value })
+                        setFormData({
+                          ...formData,
+                          youtube_url: e.target.value,
+                        })
                       }
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1 text-sm font-medium">Tags (comma separated)</label>
+                    <label className="block mb-1 text-sm font-medium">
+                      Tags (comma separated)
+                    </label>
                     <Input
                       value={formData.tags}
                       onChange={(e) =>
@@ -170,7 +195,10 @@ export default function EditPodcastPage() {
                     />
                   </div>
 
-                  <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                  <Button
+                    onClick={handleSave}
+                    disabled={updateMutation.isPending}
+                  >
                     {updateMutation.isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     ) : (
@@ -183,22 +211,29 @@ export default function EditPodcastPage() {
                 <hr className="my-8" />
 
                 <div>
-                  <h2 className="text-2xl font-bold mb-4">Comments</h2>
-                  {comments.length === 0 ? (
+                  <h2 className="text-2xl font-bold mb-4">
+                    Comments ({comments.length})
+                  </h2>
+                  {commentsLoading ? (
+                    <p>Loading comments...</p>
+                  ) : comments.length === 0 ? (
                     <p className="text-muted-foreground">No comments yet.</p>
                   ) : (
                     <div className="space-y-4">
                       {comments.map((comment: any) => (
-                        <div key={comment.id} className="border border-border rounded p-4">
+                        <div
+                          key={comment.id}
+                          className="border border-border rounded p-4"
+                        >
                           <div className="flex justify-between items-center mb-2">
                             <div className="font-medium">
-                              {comment.profiles?.username || comment.user_id}
+                              {comment.student_name || comment.user_id}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {new Date(comment.created_at).toLocaleString()}
                             </div>
                           </div>
-                          <div className="mb-2">{comment.content}</div>
+                          <div className="mb-2">{comment.comment}</div>
                           <div className="text-sm text-muted-foreground">
                             👍 {comment.likes || 0} | 👎 {comment.dislikes || 0}
                           </div>
