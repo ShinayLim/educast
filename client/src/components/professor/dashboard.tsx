@@ -180,7 +180,7 @@ export function ProfessorDashboard() {
                   </CardTitle>
                   <CardDescription className="capitalize text-xs">
                     {podcast.mediaType} •{" "}
-                    {new Date(podcast.createdAt).toLocaleDateString()}
+                    {new Date(podcast.created_at).toLocaleDateString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

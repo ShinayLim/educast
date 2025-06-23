@@ -278,7 +278,7 @@ export default function LibraryPage() {
               </div>
               
               {/* Liked Content Section */}
-              <div>
+              {/* <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold">Liked Content</h2>
                 </div>
@@ -318,7 +318,7 @@ export default function LibraryPage() {
                     </Button>
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
           </div>
         </main>
