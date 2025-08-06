@@ -23,11 +23,15 @@ export function Header({ onMenuClick, onSearch }: HeaderProps) {
   // Extract search query from URL when on search page
   useEffect(() => {
     if (isSearchPage) {
-      const params = new URLSearchParams(location.split("?")[1]);
+      // Use window.location.search
+      const params = new URLSearchParams(window.location.search);
       const q = params.get("q");
-      setSearchQuery(q || "");
+      setSearchQuery(q ? decodeURIComponent(q) : "");
+    } else {
+      // Clear search query when not on search page
+      setSearchQuery("");
     }
-  }, [location, isSearchPage]);
+  }, [location, isSearchPage, window.location.search]);
 
   // If no user, don't render header (or render a minimal one)
   if (!user) return null;
@@ -74,13 +78,6 @@ export function Header({ onMenuClick, onSearch }: HeaderProps) {
     }
   };
 
-  const handleSearchClick = () => {
-    // If not on search page, navigate to search page when clicking the search input
-    if (!isSearchPage) {
-      navigate("/search");
-    }
-  };
-
   // Helper to get user initials
   const getUserInitials = () => {
     if (user.fullName) {
@@ -123,11 +120,9 @@ export function Header({ onMenuClick, onSearch }: HeaderProps) {
             <input
               type="search"
               placeholder="Search for podcasts, professors, topics..."
-              className="w-full rounded-full border bg-background px-10 py-2 text-sm outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+              className="w-full rounded-full border bg-background px-10 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
               value={searchQuery}
               onChange={handleSearchInputChange}
-              onClick={handleSearchClick}
-              readOnly={!isSearchPage} // Make it read-only if not on search page
             />
           </form>
         </div>

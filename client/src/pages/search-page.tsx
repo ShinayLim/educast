@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -10,18 +10,48 @@ import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function SearchPage() {
   const [location, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
 
+  const debouncedSearchQuery = useDebounce(searchQuery, 350);
+
   // Extract query from URL if present
   useEffect(() => {
-    const params = new URLSearchParams(location.split("?")[1]);
+    console.log("useEffect triggered, location:", location);
+    console.log("window.location.search:", window.location.search);
+    console.log("window.location.href:", window.location.href);
+
+    // Use window.location.search
+    const params = new URLSearchParams(window.location.search);
+    console.log("Params object:", params);
     const q = params.get("q");
+    console.log("Extracted query 'q':", q);
     if (q) {
-      setSearchQuery(q);
+      const decodedQuery = decodeURIComponent(q);
+      console.log("Decoded query:", decodedQuery);
+      setSearchQuery(decodedQuery);
+    } else {
+      console.log("No query found, setting empty string");
+      setSearchQuery("");
     }
-  }, [location]);
+  }, [location, window.location.search]);
 
   // Fetch all podcasts
   const { data: allPodcasts = [], isLoading: isLoadingPodcasts } = useQuery<
@@ -36,35 +66,46 @@ export default function SearchPage() {
   });
 
   // Filter podcasts based on search query
-  const filteredPodcasts = searchQuery
-    ? allPodcasts.filter(
-        (podcast) =>
-          podcast.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          podcast.description
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          (podcast.tags &&
-            podcast.tags.some((tag) =>
-              tag.toLowerCase().includes(searchQuery.toLowerCase())
-            ))
-      )
-    : allPodcasts;
+  const filteredPodcasts = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return allPodcasts;
+    }
+
+    return allPodcasts.filter((podcast) => {
+      const query = debouncedSearchQuery.toLowerCase();
+      console.log(
+        `Filtering podcast "${podcast.title}" against query "${query}"`
+      );
+      const matches =
+        podcast.title.toLowerCase().includes(query) ||
+        podcast.description.toLowerCase().includes(query) ||
+        (podcast.tags &&
+          podcast.tags.some((tag) => tag.toLowerCase().includes(query)));
+      console.log(`Podcast "${podcast.title}" matches:`, matches);
+      return matches;
+    });
+  }, [allPodcasts, debouncedSearchQuery]);
+
+  console.log("Search query:", searchQuery);
+  console.log("All podcasts count:", allPodcasts.length);
+  console.log("Filtered podcasts count:", filteredPodcasts.length);
 
   // Filter professors based on search query
   const professors = users.filter((user) => user.role === "professor");
-  const filteredProfessors = searchQuery
-    ? professors.filter(
-        (professor) =>
-          professor.fullName
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          professor.username
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          (professor.bio &&
-            professor.bio.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : professors;
+  const filteredProfessors = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return professors;
+    }
+
+    return professors.filter((professor) => {
+      const query = debouncedSearchQuery.toLowerCase();
+      return (
+        professor.fullName.toLowerCase().includes(query) ||
+        professor.username.toLowerCase().includes(query) ||
+        (professor.bio && professor.bio.toLowerCase().includes(query))
+      );
+    });
+  }, [professors, debouncedSearchQuery]);
 
   // Handle search from header
   const handleHeaderSearch = (query: string) => {
@@ -89,7 +130,7 @@ export default function SearchPage() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar isOpen onClose={() => null} />
 
       <div className="flex-1 md:ml-64">
         <Header onMenuClick={() => {}} onSearch={handleHeaderSearch} />
@@ -112,8 +153,8 @@ export default function SearchPage() {
               </form>
             </div>
 
-            {/* Show search query if present */}
-            {searchQuery && (
+            {/* Show search query and results count */}
+            {searchQuery.trim() && (
               <div className="mb-6">
                 <h1 className="text-2xl font-bold mb-2">
                   Search results for "{searchQuery}"
@@ -166,8 +207,8 @@ export default function SearchPage() {
                         No podcasts found
                       </h3>
                       <p className="text-muted-foreground">
-                        {searchQuery
-                          ? `No podcasts match "${searchQuery}". Try different keywords.`
+                        {debouncedSearchQuery
+                          ? `No podcasts match "${debouncedSearchQuery}". Try different keywords.`
                           : "Try searching for podcasts or browse our categories"}
                       </p>
                     </div>
@@ -225,8 +266,8 @@ export default function SearchPage() {
                         No educators found
                       </h3>
                       <p className="text-muted-foreground">
-                        {searchQuery
-                          ? `No educators match "${searchQuery}". Try different keywords.`
+                        {debouncedSearchQuery
+                          ? `No educators match "${debouncedSearchQuery}". Try different keywords.`
                           : "Try searching for educators or browse our featured professors"}
                       </p>
                     </div>

@@ -1,7 +1,7 @@
 // client/src/pages/player/PlayerPage.tsx
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -42,10 +42,12 @@ export default function PlayerPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("podcasts_comments")
-        .select(`
+        .select(
+          `
           *,
           profiles ( full_name, username )
-        `)
+        `
+        )
         .eq("podcast_id", id)
         .order("created_at", { ascending: true });
 
@@ -59,7 +61,13 @@ export default function PlayerPage() {
   });
 
   const commentMutation = useMutation({
-    mutationFn: async ({ comment, parentId }: { comment: string; parentId?: string }) => {
+    mutationFn: async ({
+      comment,
+      parentId,
+    }: {
+      comment: string;
+      parentId?: string;
+    }) => {
       const { error } = await supabase.from("podcasts_comments").insert([
         {
           podcast_id: id,
@@ -108,7 +116,13 @@ export default function PlayerPage() {
   });
 
   const editCommentMutation = useMutation({
-    mutationFn: async ({ commentId, newContent }: { commentId: string; newContent: string }) => {
+    mutationFn: async ({
+      commentId,
+      newContent,
+    }: {
+      commentId: string;
+      newContent: string;
+    }) => {
       const { error } = await supabase
         .from("podcasts_comments")
         .update({ comment: newContent, updated_at: new Date().toISOString() })
@@ -180,8 +194,7 @@ export default function PlayerPage() {
                       commentMutation.mutate({ comment: newComment })
                     }
                     disabled={
-                      !newComment.trim() ||
-                      commentMutation.status === "pending"
+                      !newComment.trim() || commentMutation.status === "pending"
                     }
                   >
                     {commentMutation.status === "pending"
@@ -303,7 +316,9 @@ export default function PlayerPage() {
                                             "Unknown User"}
                                       </p>
                                       <p className="text-sm text-muted-foreground">
-                                        {new Date(r.created_at).toLocaleString()}
+                                        {new Date(
+                                          r.created_at
+                                        ).toLocaleString()}
                                       </p>
                                     </div>
                                     <p>{r.comment}</p>

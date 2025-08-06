@@ -1,5 +1,5 @@
 // client/src/lib/auth.ts
-import { supabase } from "./supabase";
+import supabase from "./supabase";
 import { RegisterData, LoginData } from "@/hooks/use-auth";
 
 export async function registerUser(data: RegisterData) {

@@ -1,5 +1,5 @@
 // client/src/lib/podcasts.ts
-import { supabase } from "./../../lib/supabase";
+import supabase from "./../../lib/supabase";
 
 export type PodcastInput = {
   title: string;
@@ -11,10 +11,18 @@ export type PodcastInput = {
 };
 
 export async function uploadPodcast(podcast: PodcastInput) {
-  const { title, description, youtubeUrl, tags = [], professorId, mediaType } = podcast;
+  const {
+    title,
+    description,
+    youtubeUrl,
+    tags = [],
+    professorId,
+    mediaType,
+  } = podcast;
 
   // Validate YouTube URL
-  const isValidYoutubeUrl = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(youtubeUrl);
+  const isValidYoutubeUrl =
+    /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(youtubeUrl);
   if (!isValidYoutubeUrl) {
     throw new Error("Invalid YouTube URL");
   }
@@ -25,8 +33,8 @@ export async function uploadPodcast(podcast: PodcastInput) {
       description,
       youtube_url: youtubeUrl,
       tags,
-      professorId,      // ✅ fix: save professorId
-      mediaType,        // ✅ fix: save mediaType
+      professorId, // ✅ fix: save professorId
+      mediaType, // ✅ fix: save mediaType
     },
   ]);
 
