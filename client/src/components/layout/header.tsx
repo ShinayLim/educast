@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Menu, Search, Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -8,14 +8,28 @@ import { useAuth } from "@/hooks/use-auth";
 
 interface HeaderProps {
   onMenuClick: () => void;
+  onSearch?: (query: string) => void; // Optional callback for search
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, onSearch }: HeaderProps) {
   const { user, logout } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // If no user, don’t render header (or render a minimal one)
+  // Check if we're on the search page
+  const isSearchPage = location.startsWith("/search");
+
+  // Extract search query from URL when on search page
+  useEffect(() => {
+    if (isSearchPage) {
+      const params = new URLSearchParams(location.split("?")[1]);
+      const q = params.get("q");
+      setSearchQuery(q || "");
+    }
+  }, [location, isSearchPage]);
+
+  // If no user, don't render header (or render a minimal one)
   if (!user) return null;
 
   const handleLogout = async () => {
@@ -31,6 +45,39 @@ export function Header({ onMenuClick }: HeaderProps) {
       }
     } finally {
       setLoggingOut(false);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      if (isSearchPage) {
+        // If on search page, call the onSearch callback and update URL
+        if (onSearch) {
+          onSearch(searchQuery.trim());
+        }
+        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      } else {
+        // If not on search page, navigate to search page with query
+        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      }
+    }
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    // If on search page, call onSearch callback in real-time (optional)
+    if (isSearchPage && onSearch) {
+      onSearch(value);
+    }
+  };
+
+  const handleSearchClick = () => {
+    // If not on search page, navigate to search page when clicking the search input
+    if (!isSearchPage) {
+      navigate("/search");
     }
   };
 
@@ -68,14 +115,21 @@ export function Header({ onMenuClick }: HeaderProps) {
 
         {/* center: search bar */}
         <div className="hidden md:flex md:flex-1 md:items-center md:justify-center">
-          <div className="relative max-w-md w-full">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="relative max-w-md w-full"
+          >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="search"
               placeholder="Search for podcasts, professors, topics..."
-              className="w-full rounded-full border bg-background px-10 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-full border bg-background px-10 py-2 text-sm outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+              value={searchQuery}
+              onChange={handleSearchInputChange}
+              onClick={handleSearchClick}
+              readOnly={!isSearchPage} // Make it read-only if not on search page
             />
-          </div>
+          </form>
         </div>
 
         {/* right: notifications, theme, avatar + logout */}
