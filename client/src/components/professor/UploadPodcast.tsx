@@ -190,6 +190,7 @@ export default function UploadPodcast() {
               <div className="mt-4">
                 <iframe
                   className="w-full aspect-video rounded-md"
+                  title="embed"
                   src={`https://www.youtube.com/embed/${videoId}`}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen

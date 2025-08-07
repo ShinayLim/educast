@@ -194,8 +194,8 @@ export default function SearchPage() {
                               ?.fullName || "Unknown"
                           }
                           authorId={podcast.professorId}
-                          thumbnailUrl={podcast.thumbnailUrl}
-                          duration={podcast.duration}
+                          thumbnailUrl={podcast.thumbnailUrl || undefined}
+                          duration={podcast.duration || undefined}
                           mediaType={podcast.mediaType as "audio" | "video"}
                         />
                       ))}
