@@ -12,7 +12,7 @@ import {
 import { Activity, Users, Headphones, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 
 export function ProfessorDashboard() {
   const { user } = useAuth();

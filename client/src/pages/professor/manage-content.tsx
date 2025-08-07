@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
 import { queryClient } from "@/lib/queryClient";
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,

@@ -25,7 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 
 const uploadPodcastSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -80,8 +80,8 @@ export default function UploadPodcast() {
             description: data.description,
             youtube_url: data.youtubeUrl,
             tags: tagsArray,
-            professorId: user?.id,          // ✅ fix: assign professorId
-            mediaType: "video",             // ✅ fix: assign mediaType
+            professorId: user?.id, // ✅ fix: assign professorId
+            mediaType: "video", // ✅ fix: assign mediaType
           },
         ]);
 
@@ -190,6 +190,7 @@ export default function UploadPodcast() {
               <div className="mt-4">
                 <iframe
                   className="w-full aspect-video rounded-md"
+                  title="embed"
                   src={`https://www.youtube.com/embed/${videoId}`}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen

@@ -10,7 +10,7 @@ import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { User as SBUser, Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 // ────────────────────────────────────────────────────────────
