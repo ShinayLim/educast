@@ -179,7 +179,7 @@ export default function UploadPodcast() {
                     />
                   </FormControl>
                   <FormDescription>
-                    Must be a public YouTube video.
+                    Must be a Public or Unlisted YouTube video.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
