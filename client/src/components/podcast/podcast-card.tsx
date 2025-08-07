@@ -1,10 +1,10 @@
 import { Link } from "wouter";
 import { Play, Clock, MoreVertical } from "lucide-react";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,26 +35,30 @@ export function PodcastCard({
   className,
 }: PodcastCardProps) {
   // Default thumbnails if not provided
-  const defaultAudioThumbnail = "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
-  const defaultVideoThumbnail = "https://images.unsplash.com/photo-1485846234645-a62644f84728?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
-  
-  const thumbnailSrc = thumbnailUrl || (mediaType === "audio" ? defaultAudioThumbnail : defaultVideoThumbnail);
-  
+  const defaultAudioThumbnail =
+    "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
+  const defaultVideoThumbnail =
+    "https://images.unsplash.com/photo-1485846234645-a62644f84728?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
+
+  const thumbnailSrc =
+    thumbnailUrl ||
+    (mediaType === "audio" ? defaultAudioThumbnail : defaultVideoThumbnail);
+
   const formatDuration = (seconds: number | undefined) => {
     if (!seconds) return "Unknown";
-    
+
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes % 60}m`;
     }
-    
+
     return `${minutes}m`;
   };
 
   return (
-    <div 
+    <div
       className={cn(
         "podcast-card rounded-lg overflow-hidden bg-card border border-border transition-all",
         className
@@ -63,9 +67,9 @@ export function PodcastCard({
       <Link href={`/podcast/${id}`}>
         <div className="block cursor-pointer">
           <div className="relative">
-            <img 
-              src={thumbnailSrc} 
-              alt={title} 
+            <img
+              src={thumbnailSrc}
+              alt={title}
               className="w-full h-40 object-cover"
             />
             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
@@ -85,7 +89,7 @@ export function PodcastCard({
                     {mediaType === "audio" ? "AUDIO" : "VIDEO"}
                   </span>
                 </div>
-                
+
                 {duration && (
                   <div className="flex items-center text-xs text-white/90">
                     <Clock className="h-3 w-3 mr-1" />
@@ -94,7 +98,7 @@ export function PodcastCard({
                 )}
               </div>
             </div>
-            
+
             <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/50">
               <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
                 <Play className="h-6 w-6 text-white" />
@@ -103,35 +107,32 @@ export function PodcastCard({
           </div>
         </div>
       </Link>
-      
+
       <div className="p-4">
         <Link href={`/podcast/${id}`}>
           <div className="block cursor-pointer">
-            <h3 className="font-bold text-base line-clamp-1 hover:text-primary transition-colors">{title}</h3>
+            <h3 className="font-bold text-base line-clamp-1 hover:text-primary transition-colors">
+              {title}
+            </h3>
           </div>
         </Link>
-        
+
         <Link href={`/professor/${authorId}`}>
           <div className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
             {author}
           </div>
         </Link>
-        
+
         <div className="flex items-center justify-between mt-3">
-          <Button 
-            asChild
-            variant="default" 
-            size="sm" 
-            className="rounded-full"
-          >
-            <Link href={`/podcast/${id}`}>
+          <Button asChild variant="default" size="sm" className="rounded-full">
+            <Link href={`/player/${podcast.id}`}>
               <div className="flex items-center gap-1 cursor-pointer">
                 <Play className="h-4 w-4" />
                 Listen now
               </div>
             </Link>
           </Button>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">

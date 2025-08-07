@@ -9,6 +9,7 @@ import { Podcast, User } from "@shared/schema";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PodcastList from "@/components/shared/PodcastList";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -85,6 +86,15 @@ export default function SearchPage() {
       return matches;
     });
   }, [allPodcasts, debouncedSearchQuery]);
+
+  const { data: podcasts = [] } = useQuery({
+    queryKey: ["/api/podcasts"],
+    queryFn: async () => {
+      const response = await fetch("/api/podcasts");
+      if (!response.ok) throw new Error("Failed to fetch podcasts");
+      return response.json();
+    },
+  });
 
   console.log("Search query:", searchQuery);
   console.log("All podcasts count:", allPodcasts.length);
@@ -183,23 +193,11 @@ export default function SearchPage() {
 
                 <TabsContent value="podcasts">
                   {filteredPodcasts.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                      {filteredPodcasts.map((podcast) => (
-                        <PodcastCard
-                          key={podcast.id}
-                          id={podcast.id}
-                          title={podcast.title}
-                          author={
-                            professors.find((p) => p.id === podcast.professorId)
-                              ?.fullName || "Unknown"
-                          }
-                          authorId={podcast.professorId}
-                          thumbnailUrl={podcast.thumbnailUrl}
-                          duration={podcast.duration}
-                          mediaType={podcast.mediaType as "audio" | "video"}
-                        />
-                      ))}
-                    </div>
+                    <PodcastList
+                      podcasts={filteredPodcasts}
+                      emptyMessage="No podcasts found."
+                      variant="default"
+                    />
                   ) : (
                     <div className="text-center py-16">
                       <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
