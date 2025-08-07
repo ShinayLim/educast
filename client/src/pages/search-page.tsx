@@ -9,6 +9,7 @@ import { Podcast, User } from "@shared/schema";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PodcastList from "@/components/shared/PodcastList";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -181,7 +182,7 @@ export default function SearchPage() {
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="podcasts">
+                {/* <TabsContent value="podcasts">
                   {filteredPodcasts.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                       {filteredPodcasts.map((podcast) => (
@@ -213,6 +214,17 @@ export default function SearchPage() {
                       </p>
                     </div>
                   )}
+                </TabsContent> */}
+
+                <TabsContent value="podcasts">
+                  <PodcastList
+                    podcasts={filteredPodcasts}
+                    emptyMessage={
+                      debouncedSearchQuery
+                        ? `No podcasts match "${debouncedSearchQuery}". Try different keywords.`
+                        : "Try searching for podcasts or browse our categories"
+                    }
+                  />
                 </TabsContent>
 
                 <TabsContent value="educators">
