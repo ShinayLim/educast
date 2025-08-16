@@ -1,7 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Podcast } from "@shared/schema";
-import { PodcastList } from "@/components/podcast/podcast-list";
 import {
   Card,
   CardContent,
@@ -9,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Activity, Users, Headphones, Video } from "lucide-react";
+import { Activity, Users, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import supabase from "@/lib/supabase";
@@ -17,12 +16,13 @@ import supabase from "@/lib/supabase";
 export function ProfessorDashboard() {
   const { user } = useAuth();
 
+  // Fetch professor's podcasts (make sure views + created_at are included)
   const { data: podcasts = [], isLoading } = useQuery<Podcast[]>({
     queryKey: [`/podcasts/professor/${user?.id}`],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("podcasts")
-        .select("*")
+        .select("id, title, mediaType, views, created_at") // ✅ explicitly include views + created_at
         .eq("professorId", user?.id)
         .order("created_at", { ascending: false });
 
@@ -32,6 +32,7 @@ export function ProfessorDashboard() {
     enabled: !!user?.id,
   });
 
+  // Fetch comments on professor's podcasts
   const { data: comments = [] } = useQuery({
     queryKey: [`/podcasts/professor/${user?.id}/comments`],
     queryFn: async () => {
@@ -49,8 +50,8 @@ export function ProfessorDashboard() {
     enabled: podcasts.length > 0,
   });
 
-  // 📊 Calculate Metrics
-  const totalViews = podcasts.reduce((sum, p) => sum + (p.views || 0), 0);
+  // 📊 Metrics
+  const totalViews = podcasts.reduce((sum, p) => sum + (p.views ?? 0), 0);
 
   const totalEngagement = comments.length;
   const engagementRate =
@@ -64,15 +65,17 @@ export function ProfessorDashboard() {
   const audioPodcasts = podcasts.filter((p) => p.mediaType === "audio").length;
   const videoPodcasts = podcasts.filter((p) => p.mediaType === "video").length;
 
+  // ✅ Fix: use created_at (snake_case) not createdAt
   const recentPodcasts = [...podcasts]
     .sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
     .slice(0, 4);
 
   return (
     <div className="space-y-8">
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -95,7 +98,7 @@ export function ProfessorDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{totalViews}</div>
             <p className="text-xs text-muted-foreground">
-              +12% from last month
+              Tracking in progress
             </p>
           </CardContent>
         </Card>
@@ -112,7 +115,7 @@ export function ProfessorDashboard() {
               {engagementRate.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              +2.1% from last month
+              Compared to last month
             </p>
           </CardContent>
         </Card>
@@ -131,6 +134,7 @@ export function ProfessorDashboard() {
         </Card>
       </div>
 
+      {/* Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="col-span-1">
           <CardHeader>
@@ -160,6 +164,7 @@ export function ProfessorDashboard() {
         </Card>
       </div>
 
+      {/* Recent Uploads */}
       <div className="space-y-6">
         <h2 className="text-2xl font-bold">Recent Uploads</h2>
 

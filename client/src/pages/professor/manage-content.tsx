@@ -109,6 +109,7 @@ export default function ManageContentPage() {
           <th className="p-3">Title</th>
           <th className="p-3">Type</th>
           <th className="p-3">Created</th>
+          <th className="p-3">Views</th>
           <th className="p-3">Comments</th>
           <th className="p-3 text-center">Actions</th>
         </tr>
@@ -119,7 +120,10 @@ export default function ManageContentPage() {
             <td className="p-3">{podcast.title}</td>
             <td className="p-3 capitalize">{podcast.mediaType}</td>
             <td className="p-3">{formatDate(podcast.created_at)}</td>
-            <td className="p-3 text-center">
+            <td className="p-3 ">
+              <PodcastViews podcastId={podcast.id} />
+            </td>
+            <td className="p-3">
               <PodcastCommentCount podcastId={podcast.id} />
             </td>
             <td className="p-3 text-center space-x-2">
@@ -247,6 +251,29 @@ function EmptyState({ message }: { message: string }) {
       </Button>
     </div>
   );
+}
+
+function PodcastViews({ podcastId }: { podcastId: number }) {
+  const { data, isLoading } = useQuery<number>({
+    queryKey: [`/podcasts/${podcastId}/views`],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("podcasts")
+        .select("views")
+        .eq("id", podcastId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching views:", error);
+        return 0;
+      }
+
+      return data?.views ?? 0;
+    },
+  });
+
+  if (isLoading) return <span>Loading...</span>;
+  return <span>{data} views</span>;
 }
 
 function PodcastCommentCount({ podcastId }: { podcastId: number }) {

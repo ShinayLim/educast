@@ -11,6 +11,7 @@ import { useState } from "react";
 import ReactPlayer from "react-player";
 import { useAuth } from "@/hooks/use-auth";
 import { Textarea } from "@/components/ui/textarea";
+import { useEffect } from "react";
 
 export default function PlayerPage() {
   const { id } = useParams();
@@ -36,6 +37,26 @@ export default function PlayerPage() {
     },
     enabled: !!id,
   });
+
+  const viewMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("podcast_views").insert([
+        {
+          podcast_id: id,
+          user_id: user?.id || null,
+          anon_id: user ? null : crypto.randomUUID(),
+          user_agent: navigator.userAgent,
+        },
+      ]);
+      if (error) console.error("Failed to insert podcast view:", error.message);
+    },
+  });
+
+  useEffect(() => {
+    if (podcast && id) {
+      viewMutation.mutate();
+    }
+  }, [podcast, id]);
 
   const { data: comments = [], isLoading: loadingComments } = useQuery({
     queryKey: [`/player/${id}/comments`],
