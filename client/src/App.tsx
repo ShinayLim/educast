@@ -13,7 +13,8 @@ import UploadPage from "@/pages/professor/upload-page";
 import ManageContentPage from "@/pages/professor/manage-content";
 import LibraryPage from "@/pages/student/library-page";
 import PlayerPage from "@/pages/player/PlayerPage";
-import EditPodcastPage from "@/pages/professor/EditPodcastPage";  // ✅ add EditPodcastPage
+import EditPodcastPage from "@/pages/professor/EditPodcastPage";
+import ProfessorProfilePage from "@/pages/professor/ProfessorProfilePage";
 
 import { AuthProvider } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -29,9 +30,14 @@ function Router() {
       <ProtectedRoute path="/search" component={SearchPage} />
       <ProtectedRoute path="/professor/upload" component={UploadPage} />
       <ProtectedRoute path="/professor/manage" component={ManageContentPage} />
-      <ProtectedRoute path="/professor/edit/:id" component={EditPodcastPage} /> {/* ✅ new route */}
+      <ProtectedRoute
+        path="/professor/edit/:id"
+        component={EditPodcastPage}
+      />{" "}
+      {/* ✅ new route */}
       <ProtectedRoute path="/student/library" component={LibraryPage} />
       <ProtectedRoute path="/player/:id" component={PlayerPage} />
+      <Route path="/professor/:id" component={ProfessorProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
