@@ -147,7 +147,9 @@ export function Header({ onMenuClick, onSearch }: HeaderProps) {
             </Avatar>
 
             <div className="hidden md:flex md:flex-col">
-              <span className="text-sm font-medium">{user.fullName}</span>
+              <span className="text-sm font-medium capitalize">
+                {user.fullName}
+              </span>
 
               <Button
                 variant="link"

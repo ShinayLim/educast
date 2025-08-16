@@ -18,7 +18,7 @@ export default function HomePage() {
 
         <main className="container mx-auto px-4 pb-24 md:px-6">
           <div className="py-6">
-            <h1 className="text-3xl font-bold mb-1">
+            <h1 className="text-3xl font-bold mb-1 capitalize">
               Welcome, {user?.fullName}
             </h1>
             <p className="text-muted-foreground mb-8">
