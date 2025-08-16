@@ -200,12 +200,9 @@ export function ProfessorDashboard() {
 
         {podcasts.length > 4 && (
           <div className="flex justify-center mt-6">
-            <Button
-              onClick={() => (window.location.href = "/professor/manage")}
-              variant="outline"
-            >
-              Show More
-            </Button>
+            <Link to="/professor/manage">
+              <Button variant="outline">Show More</Button>
+            </Link>
           </div>
         )}
       </div>
