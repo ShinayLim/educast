@@ -15,6 +15,7 @@ import LibraryPage from "@/pages/student/library-page";
 import PlayerPage from "@/pages/player/PlayerPage";
 import EditPodcastPage from "@/pages/professor/EditPodcastPage";
 import ProfessorProfilePage from "@/pages/professor/ProfessorProfilePage";
+import StudentProfilePage from "@/pages/student/StudentProfilePage";
 
 import { AuthProvider } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -36,8 +37,9 @@ function Router() {
       />{" "}
       {/* ✅ new route */}
       <ProtectedRoute path="/student/library" component={LibraryPage} />
+      <ProtectedRoute path="/student/:id" component={StudentProfilePage} />
       <ProtectedRoute path="/player/:id" component={PlayerPage} />
-      <Route path="/professor/:id" component={ProfessorProfilePage} />
+      <ProtectedRoute path="/professor/:id" component={ProfessorProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );

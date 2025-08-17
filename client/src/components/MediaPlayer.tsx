@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
   Volume2,
   VolumeX,
   Minimize2,
@@ -12,7 +12,7 @@ import {
   X,
   ListMusic,
   Download,
-  Share2
+  Share2,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useMutation } from "@tanstack/react-query";
@@ -40,11 +40,11 @@ interface MediaPlayerProps {
   isMinimized: boolean;
 }
 
-export default function MediaPlayer({ 
-  podcast, 
-  onClose, 
-  onMinimize, 
-  isMinimized 
+export default function MediaPlayer({
+  podcast,
+  onClose,
+  onMinimize,
+  isMinimized,
 }: MediaPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -58,7 +58,7 @@ export default function MediaPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
-  
+
   const mediaRef = podcast.mediaType.startsWith("video") ? videoRef : audioRef;
   const isVideo = podcast.mediaType.startsWith("video");
 
@@ -69,7 +69,7 @@ export default function MediaPlayer({
     },
     onError: (error) => {
       console.error("Failed to record view:", error);
-    }
+    },
   });
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function MediaPlayer({
         mediaRef.current.pause();
       } else {
         const playPromise = mediaRef.current.play();
-        
+
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
@@ -88,7 +88,7 @@ export default function MediaPlayer({
                 viewMutation.mutate();
               }
             })
-            .catch(error => {
+            .catch((error) => {
               console.error("Error playing media:", error);
               setIsPlaying(false);
             });
@@ -161,11 +161,13 @@ export default function MediaPlayer({
     // Create a temporary link to trigger download
     const link = document.createElement("a");
     link.href = podcast.mediaUrl;
-    link.download = `${podcast.title}.${podcast.mediaType.split("/")[1] || "mp3"}`;
+    link.download = `${podcast.title}.${
+      podcast.mediaType.split("/")[1] || "mp3"
+    }`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast({
       title: "Download started",
       description: `Downloading ${podcast.title}...`,
@@ -174,13 +176,14 @@ export default function MediaPlayer({
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: podcast.title,
-        text: podcast.description,
-        url: window.location.href,
-      })
-      .then(() => console.log("Shared successfully"))
-      .catch((error) => console.log("Error sharing:", error));
+      navigator
+        .share({
+          title: podcast.title,
+          text: podcast.description,
+          url: window.location.href,
+        })
+        .then(() => console.log("Shared successfully"))
+        .catch((error) => console.log("Error sharing:", error));
     } else {
       // Fallback to copying URL
       navigator.clipboard.writeText(window.location.href);
@@ -195,7 +198,7 @@ export default function MediaPlayer({
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     let result = "";
     if (hrs > 0) {
       result += `${hrs}:${mins < 10 ? "0" : ""}`;
@@ -209,40 +212,44 @@ export default function MediaPlayer({
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t p-2 flex items-center justify-between z-50">
         <div className="flex items-center space-x-3">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="rounded-full"
             onClick={handlePlayPause}
           >
-            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
           </Button>
-          
+
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-medium truncate">{podcast.title}</h4>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onMinimize()}
             className="rounded-full"
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
+
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
             className="rounded-full"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         {isVideo ? (
           <video
             ref={videoRef}
@@ -253,10 +260,10 @@ export default function MediaPlayer({
             onEnded={handleEnded}
           >
             {podcast.transcript && (
-              <track 
-                kind="subtitles" 
-                src={`data:text/vtt;base64,${btoa(podcast.transcript)}`} 
-                srcLang="en" 
+              <track
+                kind="subtitles"
+                src={`data:text/vtt;base64,${btoa(podcast.transcript)}`}
+                srcLang="en"
                 label="English"
                 default={showCaptions}
               />
@@ -281,9 +288,9 @@ export default function MediaPlayer({
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-4">
           {podcast.thumbnailUrl && (
-            <img 
-              src={podcast.thumbnailUrl} 
-              alt={podcast.title} 
+            <img
+              src={podcast.thumbnailUrl}
+              alt={podcast.title}
               className="w-10 h-10 rounded object-cover"
             />
           )}
@@ -291,32 +298,26 @@ export default function MediaPlayer({
             <h2 className="text-xl font-bold">{podcast.title}</h2>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => onMinimize()}
-          >
+          <Button variant="ghost" size="icon" onClick={() => onMinimize()}>
             <Minimize2 className="h-4 w-4" />
           </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onClose}
-          >
+
+          <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-auto flex flex-col md:flex-row">
         <div className={`md:w-${isVideo ? "3/4" : "1/2"} flex flex-col`}>
           {isVideo ? (
             <div className="relative bg-black flex-1 flex items-center justify-center">
               {isLoading ? (
-                <div className="animate-pulse text-muted-foreground">Loading...</div>
+                <div className="animate-pulse text-muted-foreground">
+                  Loading...
+                </div>
               ) : (
                 <video
                   ref={videoRef}
@@ -327,10 +328,10 @@ export default function MediaPlayer({
                   onEnded={handleEnded}
                 >
                   {podcast.transcript && (
-                    <track 
-                      kind="subtitles" 
-                      src={`data:text/vtt;base64,${btoa(podcast.transcript)}`} 
-                      srcLang="en" 
+                    <track
+                      kind="subtitles"
+                      src={`data:text/vtt;base64,${btoa(podcast.transcript)}`}
+                      srcLang="en"
                       label="English"
                       default={showCaptions}
                     />
@@ -342,15 +343,15 @@ export default function MediaPlayer({
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="w-full max-w-md aspect-square rounded-full bg-secondary flex items-center justify-center overflow-hidden">
                 {podcast.thumbnailUrl ? (
-                  <img 
-                    src={podcast.thumbnailUrl} 
-                    alt={podcast.title} 
+                  <img
+                    src={podcast.thumbnailUrl}
+                    alt={podcast.title}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <ListMusic className="h-24 w-24 text-muted-foreground" />
                 )}
-                
+
                 <audio
                   ref={audioRef}
                   src={podcast.mediaUrl}
@@ -362,14 +363,14 @@ export default function MediaPlayer({
               </div>
             </div>
           )}
-          
+
           <div className="p-4 space-y-4 border-t">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 {formatTime(currentTime)}
               </span>
-              <Slider 
-                value={[currentTime]} 
+              <Slider
+                value={[currentTime]}
                 max={duration || 100}
                 step={1}
                 onValueChange={(values) => handleSeek(values[0])}
@@ -379,19 +380,19 @@ export default function MediaPlayer({
                 {formatTime(duration)}
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={toggleMute}
-                >
-                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                <Button variant="ghost" size="icon" onClick={toggleMute}>
+                  {isMuted ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
                 </Button>
-                
-                <Slider 
-                  value={[isMuted ? 0 : volume]} 
+
+                <Slider
+                  value={[isMuted ? 0 : volume]}
                   min={0}
                   max={1}
                   step={0.01}
@@ -399,36 +400,33 @@ export default function MediaPlayer({
                   className="w-24"
                 />
               </div>
-              
+
               <div className="flex items-center space-x-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  disabled
-                >
+                <Button variant="ghost" size="icon" disabled>
                   <SkipBack className="h-4 w-4" />
                 </Button>
-                
-                <Button 
+
+                <Button
                   variant="default"
                   size="icon"
                   className="h-10 w-10 rounded-full"
                   onClick={handlePlayPause}
                 >
-                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  {isPlaying ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
                 </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  disabled
-                >
+
+                <Button variant="ghost" size="icon" disabled>
                   <SkipForward className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <div className="flex items-center space-x-2">
-                <select 
+                <select
+                  title="Playback Speed"
                   value={playbackRate}
                   onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
                   className="bg-secondary text-sm rounded px-2 py-1"
@@ -440,9 +438,9 @@ export default function MediaPlayer({
                   <option value="1.5">1.5x</option>
                   <option value="2">2x</option>
                 </select>
-                
+
                 {isVideo && podcast.transcript && (
-                  <Button 
+                  <Button
                     variant={showCaptions ? "default" : "outline"}
                     size="sm"
                     onClick={() => setShowCaptions(!showCaptions)}
@@ -450,37 +448,43 @@ export default function MediaPlayer({
                     CC
                   </Button>
                 )}
-                
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={handleDownload}
-                >
+
+                <Button variant="ghost" size="icon" onClick={handleDownload}>
                   <Download className="h-4 w-4" />
                 </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={handleShare}
-                >
+
+                <Button variant="ghost" size="icon" onClick={handleShare}>
                   <Share2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </div>
         </div>
-        
-        <div className={`md:w-${isVideo ? "1/4" : "1/2"} border-t md:border-t-0 md:border-l overflow-auto`}>
-          <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab}>
+
+        <div
+          className={`md:w-${
+            isVideo ? "1/4" : "1/2"
+          } border-t md:border-t-0 md:border-l overflow-auto`}
+        >
+          <Tabs
+            defaultValue="details"
+            value={activeTab}
+            onValueChange={setActiveTab}
+          >
             <TabsList className="w-full">
-              <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
-              <TabsTrigger value="comments" className="flex-1">Comments</TabsTrigger>
+              <TabsTrigger value="details" className="flex-1">
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="comments" className="flex-1">
+                Comments
+              </TabsTrigger>
               {podcast.transcript && (
-                <TabsTrigger value="transcript" className="flex-1">Transcript</TabsTrigger>
+                <TabsTrigger value="transcript" className="flex-1">
+                  Transcript
+                </TabsTrigger>
               )}
             </TabsList>
-            
+
             <TabsContent value="details" className="p-4">
               <div className="space-y-4">
                 <div>
@@ -489,7 +493,7 @@ export default function MediaPlayer({
                     {podcast.description}
                   </p>
                 </div>
-                
+
                 {podcast.duration && (
                   <div>
                     <h4 className="text-sm font-medium">Duration</h4>
@@ -498,11 +502,11 @@ export default function MediaPlayer({
                 )}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="comments" className="p-4">
               <CommentSection podcastId={podcast.id} />
             </TabsContent>
-            
+
             {podcast.transcript && (
               <TabsContent value="transcript" className="p-4">
                 <div className="text-sm whitespace-pre-line">

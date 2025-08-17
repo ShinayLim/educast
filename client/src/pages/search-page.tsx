@@ -59,6 +59,15 @@ export default function SearchPage() {
     Podcast[]
   >({
     queryKey: ["/api/podcasts"],
+    queryFn: async () => {
+      const response = await fetch("/api/podcasts");
+      if (!response.ok) {
+        throw new Error("Failed to fetch podcasts");
+      }
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 60,
   });
 
   // Fetch all users (professors)
@@ -101,7 +110,7 @@ export default function SearchPage() {
     return professors.filter((professor) => {
       const query = debouncedSearchQuery.toLowerCase();
       return (
-        professor.fullName.toLowerCase().includes(query) ||
+        professor.full_name.toLowerCase().includes(query) ||
         professor.username.toLowerCase().includes(query) ||
         (professor.bio && professor.bio.toLowerCase().includes(query))
       );
@@ -236,20 +245,20 @@ export default function SearchPage() {
                           className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1"
                         >
                           <div className="p-6 flex flex-col items-center text-center">
-                            {professor.avatarUrl ? (
+                            {professor.avatar_url ? (
                               <img
-                                src={professor.avatarUrl}
-                                alt={professor.fullName}
+                                src={professor.avatar_url}
+                                alt={professor.full_name}
                                 className="w-24 h-24 rounded-full mb-4 object-cover"
                               />
                             ) : (
                               <div className="w-24 h-24 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-4">
-                                {professor.fullName.charAt(0).toUpperCase()}
+                                {professor.full_name.charAt(0).toUpperCase()}
                               </div>
                             )}
 
                             <h3 className="font-bold text-lg mb-1">
-                              {professor.fullName}
+                              {professor.full_name}
                             </h3>
                             <p className="text-sm text-muted-foreground mb-4">
                               Professor

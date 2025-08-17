@@ -1,0 +1,1 @@
+ALTER TABLE "podcasts" ADD COLUMN "youtube_url" text NOT NULL;

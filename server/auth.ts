@@ -79,7 +79,9 @@ export function setupAuth(app: Express) {
         validatedData.username
       );
       if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
+        return res
+          .status(400)
+          .json({ message: "Username already exists. Dan" });
       }
 
       const user = await storage.createUser({
@@ -121,8 +123,8 @@ export function setupAuth(app: Express) {
           if (err) return next(err);
 
           // Don't return password in response
-          const { password, ...userWithoutPassword } = user;
-          res.status(200).json(userWithoutPassword);
+          // const { password, ...userWithoutPassword } = user;
+          // res.status(200).json(userWithoutPassword);
         });
       }
     )(req, res, next);
@@ -139,7 +141,7 @@ export function setupAuth(app: Express) {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
     // Don't return password in response
-    const { password, ...userWithoutPassword } = req.user as SelectUser;
-    res.json(userWithoutPassword);
+    // const { password, ...userWithoutPassword } = req.user as SelectUser;
+    // res.json(userWithoutPassword);
   });
 }

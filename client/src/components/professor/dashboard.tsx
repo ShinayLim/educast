@@ -13,21 +13,30 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import supabase from "@/lib/supabase";
 
+type DashboardPodcast = {
+  id: number;
+  title: string;
+  mediaType: string;
+  views: number | null;
+  created_at: string;
+};
+
 export function ProfessorDashboard() {
   const { user } = useAuth();
 
   // Fetch professor's podcasts (make sure views + created_at are included)
-  const { data: podcasts = [], isLoading } = useQuery<Podcast[]>({
+
+  const { data: podcasts = [], isLoading } = useQuery<DashboardPodcast[]>({
     queryKey: [`/podcasts/professor/${user?.id}`],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("podcasts")
-        .select("id, title, mediaType, views, created_at") // ✅ explicitly include views + created_at
+        .select("id, title, mediaType, views, created_at")
         .eq("professorId", user?.id)
         .order("created_at", { ascending: false });
 
       if (error) throw new Error(error.message || "Failed to fetch podcasts");
-      return data || [];
+      return data as DashboardPodcast[]; // ✅ cast to new type
     },
     enabled: !!user?.id,
   });
@@ -57,9 +66,9 @@ export function ProfessorDashboard() {
   const engagementRate =
     totalViews > 0 ? (totalEngagement / totalViews) * 100 : 0;
 
-  const uniqueStudents = [
-    ...new Set(comments.map((comment: any) => comment.user_id)),
-  ];
+  const uniqueStudents = Array.from(
+    new Set(comments.map((comment: any) => comment.user_id))
+  );
   const studentReach = uniqueStudents.length;
 
   const audioPodcasts = podcasts.filter((p) => p.mediaType === "audio").length;

@@ -12,6 +12,7 @@ import ReactPlayer from "react-player";
 import { useAuth } from "@/hooks/use-auth";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect } from "react";
+import { comment } from "postcss";
 
 export default function PlayerPage() {
   const { id } = useParams();
@@ -65,9 +66,13 @@ export default function PlayerPage() {
         .from("podcasts_comments")
         .select(
           `
-          *,
-          profiles ( full_name, username )
-        `
+        *,
+        user:profiles!user_id (
+          id,
+          full_name,
+          username
+        )
+      `
         )
         .eq("podcast_id", id)
         .order("created_at", { ascending: true });
@@ -229,163 +234,176 @@ export default function PlayerPage() {
                     <div className="space-y-4">
                       {comments
                         .filter((c) => !c.parent_id)
-                        .map((c) => (
-                          <div
-                            key={c.id}
-                            className="p-4 border rounded space-y-2 bg-muted"
-                          >
-                            <div className="flex justify-between items-center">
-                              <p className="font-medium">
-                                {c.user_id === user?.id
-                                  ? "You"
-                                  : c.profiles?.full_name ||
-                                    c.profiles?.username ||
-                                    "Unknown User"}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(c.created_at).toLocaleString()}
-                              </p>
-                            </div>
-
-                            {editingCommentId === c.id ? (
-                              <>
-                                <Textarea
-                                  value={editingContent}
-                                  onChange={(e) =>
-                                    setEditingContent(e.target.value)
-                                  }
-                                />
-                                <div className="flex gap-2 mt-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      editCommentMutation.mutate({
-                                        commentId: c.id,
-                                        newContent: editingContent,
-                                      })
-                                    }
-                                  >
-                                    Save
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setEditingCommentId(null)}
-                                  >
-                                    Cancel
-                                  </Button>
+                        .map(
+                          (c) => (
+                            console.log("Comment debug:", {
+                              commentId: c.id,
+                              comment: c.comment,
+                              userId: c.user_id,
+                              profile: c.profiles,
+                              id: user?.id,
+                            }),
+                            (
+                              <div
+                                key={c.id}
+                                className="p-4 border rounded space-y-2 bg-muted"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <p className="font-medium">
+                                    {c.user_id === user?.id
+                                      ? "You"
+                                      : c.user?.full_name ||
+                                        c.user?.username ||
+                                        "Unknown User"}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {new Date(c.created_at).toLocaleString()}
+                                  </p>
                                 </div>
-                              </>
-                            ) : (
-                              <>
-                                <p>{c.comment}</p>
-                                <div className="flex gap-2 mt-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      likeCommentMutation.mutate(c.id)
-                                    }
-                                  >
-                                    👍 {c.likes}
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      dislikeCommentMutation.mutate(c.id)
-                                    }
-                                  >
-                                    👎 {c.dislikes}
-                                  </Button>
-                                  {c.user_id === user?.id && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        setEditingCommentId(c.id);
-                                        setEditingContent(c.comment);
-                                      }}
-                                    >
-                                      ✏️ Edit
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setReplyingTo(c.id)}
-                                  >
-                                    💬 Reply
-                                  </Button>
-                                </div>
-                              </>
-                            )}
 
-                            {getReplies(c.id).length > 0 && (
-                              <div className="mt-3 pl-4 border-l space-y-2">
-                                {getReplies(c.id).map((r) => (
-                                  <div
-                                    key={r.id}
-                                    className="p-3 bg-background rounded border"
-                                  >
-                                    <div className="flex justify-between items-center">
-                                      <p className="font-medium">
-                                        {r.user_id === user?.id
-                                          ? "You"
-                                          : r.profiles?.full_name ||
-                                            r.profiles?.username ||
-                                            "Unknown User"}
-                                      </p>
-                                      <p className="text-sm text-muted-foreground">
-                                        {new Date(
-                                          r.created_at
-                                        ).toLocaleString()}
-                                      </p>
+                                {editingCommentId === c.id ? (
+                                  <>
+                                    <Textarea
+                                      value={editingContent}
+                                      onChange={(e) =>
+                                        setEditingContent(e.target.value)
+                                      }
+                                    />
+                                    <div className="flex gap-2 mt-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          editCommentMutation.mutate({
+                                            commentId: c.id,
+                                            newContent: editingContent,
+                                          })
+                                        }
+                                      >
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          setEditingCommentId(null)
+                                        }
+                                      >
+                                        Cancel
+                                      </Button>
                                     </div>
-                                    <p>{r.comment}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <p>{c.comment}</p>
+                                    <div className="flex gap-2 mt-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          likeCommentMutation.mutate(c.id)
+                                        }
+                                      >
+                                        👍 {c.likes}
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          dislikeCommentMutation.mutate(c.id)
+                                        }
+                                      >
+                                        👎 {c.dislikes}
+                                      </Button>
+                                      {c.user_id === user?.id && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            setEditingCommentId(c.id);
+                                            setEditingContent(c.comment);
+                                          }}
+                                        >
+                                          ✏️ Edit
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setReplyingTo(c.id)}
+                                      >
+                                        💬 Reply
+                                      </Button>
+                                    </div>
+                                  </>
+                                )}
 
-                            {replyingTo === c.id && (
-                              <div className="mt-3 space-y-2">
-                                <Textarea
-                                  placeholder="Write a reply..."
-                                  value={replyContent}
-                                  onChange={(e) =>
-                                    setReplyContent(e.target.value)
-                                  }
-                                />
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      commentMutation.mutate({
-                                        comment: replyContent,
-                                        parentId: replyingTo!,
-                                      });
-                                      setReplyingTo(null);
-                                      setReplyContent("");
-                                    }}
-                                  >
-                                    Reply
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setReplyingTo(null);
-                                      setReplyContent("");
-                                    }}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
+                                {getReplies(c.id).length > 0 && (
+                                  <div className="mt-3 pl-4 border-l space-y-2">
+                                    {getReplies(c.id).map((r) => (
+                                      <div
+                                        key={r.id}
+                                        className="p-3 bg-background rounded border"
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <p className="font-medium">
+                                            {r.user_id === user?.id
+                                              ? "You"
+                                              : r.user?.full_name ||
+                                                r.user?.username ||
+                                                "Unknown User"}
+                                          </p>
+                                          <p className="text-sm text-muted-foreground">
+                                            {new Date(
+                                              r.created_at
+                                            ).toLocaleString()}
+                                          </p>
+                                        </div>
+                                        <p>{r.comment}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {replyingTo === c.id && (
+                                  <div className="mt-3 space-y-2">
+                                    <Textarea
+                                      placeholder="Write a reply..."
+                                      value={replyContent}
+                                      onChange={(e) =>
+                                        setReplyContent(e.target.value)
+                                      }
+                                    />
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          commentMutation.mutate({
+                                            comment: replyContent,
+                                            parentId: replyingTo!,
+                                          });
+                                          setReplyingTo(null);
+                                          setReplyContent("");
+                                        }}
+                                      >
+                                        Reply
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setReplyingTo(null);
+                                          setReplyContent("");
+                                        }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        ))}
+                            )
+                          )
+                        )}
                     </div>
                   ) : (
                     <p className="text-muted-foreground">No comments yet.</p>

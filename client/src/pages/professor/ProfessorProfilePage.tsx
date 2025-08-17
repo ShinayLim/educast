@@ -7,14 +7,9 @@ import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useState } from "react";
+import { Profile } from "@shared/schema";
 
-type Professor = {
-  id: number;
-  name: string;
-  email: string;
-  bio?: string;
-  avatar_url?: string;
-};
+type Professor = Profile;
 
 type Podcast = {
   id: number;
@@ -83,11 +78,13 @@ export default function ProfessorProfilePage() {
             <div className="flex items-center gap-6 mb-10">
               <img
                 src={professor.avatar_url || "/default-avatar.png"}
-                alt={professor.name}
+                alt={professor.full_name}
                 className="w-24 h-24 rounded-full border border-border"
               />
               <div>
-                <h1 className="text-3xl font-bold">{professor.name}</h1>
+                <h1 className="text-3xl font-bold text-primary">
+                  {professor.full_name}
+                </h1>
                 <p className="text-muted-foreground">{professor.email}</p>
                 {professor.bio && (
                   <p className="mt-2 text-foreground">{professor.bio}</p>
@@ -112,7 +109,7 @@ export default function ProfessorProfilePage() {
                       {podcast.description || "No description provided"}
                     </p>
                     <Button asChild variant="outline" size="sm">
-                      <Link href={`/podcasts/${podcast.id}`}>View Podcast</Link>
+                      <Link href={`/player/${podcast.id}`}>View Podcast</Link>
                     </Button>
                   </div>
                 ))}

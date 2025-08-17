@@ -3,20 +3,21 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle, 
+  CardTitle,
 } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
+import { Podcast } from "@shared/schema";
 
 // Define Podcast type
-type Podcast = {
-  id: string;
-  title: string;
-  description: string;
-  youtube_url: string;
-  tags?: string[];
-  created_at?: string;
-};
+// type Podcast = {
+//   id: string;
+//   title: string;
+//   description: string;
+//   youtube_url: string;
+//   tags?: string[];
+//   created_at?: string;
+// };
 
 // Define the prop types for PodcastList
 type PodcastListProps = {
@@ -27,7 +28,9 @@ type PodcastListProps = {
 };
 
 // Extract YouTube video ID from a URL
-function getYoutubeId(url: string): string | null {
+function getYoutubeId(url: string | undefined | null): string | null {
+  if (!url) return null;
+
   const regExp =
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^\s&?]+)/;
   const match = url.match(regExp);
@@ -48,10 +51,14 @@ export default function PodcastList({
     );
   }
 
+  console.log("Podcast data:", podcasts);
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {podcasts.map((podcast: Podcast) => {
-        const videoId = getYoutubeId(podcast.youtube_url);
+        const videoId = podcast.youtube_url
+          ? getYoutubeId(podcast.youtube_url)
+          : null;
 
         return (
           <Card key={podcast.id}>
@@ -80,6 +87,7 @@ export default function PodcastList({
             <CardContent className="p-0">
               {videoId ? (
                 <iframe
+                  title="Podcast Video"
                   className="w-full aspect-video rounded-b-md"
                   src={`https://www.youtube.com/embed/${videoId}`}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -88,7 +96,7 @@ export default function PodcastList({
                 />
               ) : (
                 <div className="p-4 text-sm text-destructive">
-                  Invalid YouTube URL
+                  No video available
                 </div>
               )}
             </CardContent>

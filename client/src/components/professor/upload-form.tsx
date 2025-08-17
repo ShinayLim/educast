@@ -444,6 +444,7 @@ export function UploadForm() {
                         Maximum file size: 100MB
                       </p>
                       <input
+                        title="mediaInput"
                         type="file"
                         ref={mediaInputRef}
                         className="hidden"
@@ -512,6 +513,7 @@ export function UploadForm() {
                         Recommended size: 1280x720px
                       </p>
                       <input
+                        title="thumbnailInput"
                         type="file"
                         ref={thumbnailInputRef}
                         className="hidden"

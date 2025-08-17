@@ -5,33 +5,32 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { setupAuth } from "./auth";
-import { 
-  insertPodcastSchema, 
-  insertPlaylistSchema, 
+import {
+  insertPodcastSchema,
+  insertPlaylistSchema,
   insertPlaylistItemSchema,
-  insertCommentSchema,
-  insertLikeSchema,
-  insertViewSchema
+  insertPodcastCommentSchema,
+  insertPodcastViewSchema,
 } from "@shared/schema";
 
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
     destination: function (req, file, cb) {
-      const mediaType = file.mimetype.startsWith('video') ? 'videos' : 'audios';
-      const uploadDir = path.join(process.cwd(), 'uploads', mediaType);
-      
+      const mediaType = file.mimetype.startsWith("video") ? "videos" : "audios";
+      const uploadDir = path.join(process.cwd(), "uploads", mediaType);
+
       // Create directory if it doesn't exist
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
-      
+
       cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
+    },
   }),
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB limit
@@ -41,19 +40,19 @@ const upload = multer({
 const thumbnailUpload = multer({
   storage: multer.diskStorage({
     destination: function (req, file, cb) {
-      const uploadDir = path.join(process.cwd(), 'uploads', 'thumbnails');
-      
+      const uploadDir = path.join(process.cwd(), "uploads", "thumbnails");
+
       // Create directory if it doesn't exist
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
-      
+
       cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
+    },
   }),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
@@ -81,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
   // Serve uploaded files
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
   // User routes
   app.get("/api/users/:id", isAuthenticated, async (req, res) => {
@@ -96,78 +95,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
     // User can only update their own profile
-    if (req.user?.id !== parseInt(req.params.id)) {
+    if (req.user?.id !== req.params.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
-    
-    const updatedUser = await storage.updateUser(parseInt(req.params.id), req.body);
+
+    const updatedUser = await storage.updateUser(
+      parseInt(req.params.id),
+      req.body
+    );
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     // Don't return password
     const { password, ...userWithoutPassword } = updatedUser;
     res.json(userWithoutPassword);
   });
 
   // Podcast routes
-  app.post("/api/podcasts", isProfessor, upload.single('media'), async (req, res) => {
-    try {
-      const mediaFile = req.file;
-      if (!mediaFile) {
-        return res.status(400).json({ message: "No media file uploaded" });
-      }
-      
-      const mediaUrl = `/uploads/${mediaFile.mimetype.startsWith('video') ? 'videos' : 'audios'}/${mediaFile.filename}`;
-      const mediaType = mediaFile.mimetype.startsWith('video') ? 'video' : 'audio';
-      
-      const podcastData = {
-        ...req.body,
-        mediaUrl,
-        mediaType,
-        professorId: req.user?.id,
-        tags: req.body.tags ? JSON.parse(req.body.tags) : [],
-        duration: parseInt(req.body.duration) || 0,
-      };
-      
-      const validatedData = insertPodcastSchema.parse(podcastData);
-      const podcast = await storage.createPodcast(validatedData);
-      
-      res.status(201).json(podcast);
-    } catch (error) {
-      console.error("Error creating podcast:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
+  app.post(
+    "/api/podcasts",
+    isProfessor,
+    upload.single("media"),
+    async (req, res) => {
+      try {
+        const mediaFile = req.file;
+        if (!mediaFile) {
+          return res.status(400).json({ message: "No media file uploaded" });
+        }
 
-  app.post("/api/podcasts/:id/thumbnail", isProfessor, thumbnailUpload.single('thumbnail'), async (req, res) => {
-    try {
-      const podcastId = parseInt(req.params.id);
-      const podcast = await storage.getPodcast(podcastId);
-      
-      if (!podcast) {
-        return res.status(404).json({ message: "Podcast not found" });
+        const mediaUrl = `/uploads/${
+          mediaFile.mimetype.startsWith("video") ? "videos" : "audios"
+        }/${mediaFile.filename}`;
+        const mediaType = mediaFile.mimetype.startsWith("video")
+          ? "video"
+          : "audio";
+
+        const podcastData = {
+          ...req.body,
+          mediaUrl,
+          mediaType,
+          professorId: req.user?.id,
+          tags: req.body.tags ? JSON.parse(req.body.tags) : [],
+          duration: parseInt(req.body.duration) || 0,
+        };
+
+        const validatedData = insertPodcastSchema.parse(podcastData);
+        const podcast = await storage.createPodcast(validatedData);
+
+        res.status(201).json(podcast);
+      } catch (error: unknown) {
+        const err = error as Error;
+        console.error("Error creating podcast:", err);
+        res.status(400).json({ message: err.message });
       }
-      
-      // Check if user is the owner of the podcast
-      if (podcast.professorId !== req.user?.id) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-      
-      const thumbnailFile = req.file;
-      if (!thumbnailFile) {
-        return res.status(400).json({ message: "No thumbnail file uploaded" });
-      }
-      
-      const thumbnailUrl = `/uploads/thumbnails/${thumbnailFile.filename}`;
-      
-      const updatedPodcast = await storage.updatePodcast(podcastId, { thumbnailUrl });
-      res.json(updatedPodcast);
-    } catch (error) {
-      console.error("Error uploading thumbnail:", error);
-      res.status(400).json({ message: error.message });
     }
-  });
+  );
+
+  app.post(
+    "/api/podcasts/:id/thumbnail",
+    isProfessor,
+    thumbnailUpload.single("thumbnail"),
+    async (req, res) => {
+      try {
+        const podcastId = parseInt(req.params.id);
+        const podcast = await storage.getPodcast(podcastId);
+
+        if (!podcast) {
+          return res.status(404).json({ message: "Podcast not found" });
+        }
+
+        // Check if user is the owner of the podcast
+        if (podcast.professorId !== req.user?.id) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const thumbnailFile = req.file;
+        if (!thumbnailFile) {
+          return res
+            .status(400)
+            .json({ message: "No thumbnail file uploaded" });
+        }
+
+        const thumbnailUrl = `/uploads/thumbnails/${thumbnailFile.filename}`;
+
+        const updatedPodcast = await storage.updatePodcast(podcastId, {
+          thumbnailUrl,
+        });
+        res.json(updatedPodcast);
+      } catch (error: unknown) {
+        const err = error as Error;
+        console.error("Error uploading thumbnail:", err);
+        res.status(400).json({ message: err.message });
+      }
+    }
+  );
 
   app.get("/api/podcasts", async (req, res) => {
     const podcasts = await storage.getAllPodcasts();
@@ -177,9 +199,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/podcasts/search", async (req, res) => {
     const query = req.query.q as string;
     if (!query) {
-      return res.status(400).json({ message: "Query parameter 'q' is required" });
+      return res
+        .status(400)
+        .json({ message: "Query parameter 'q' is required" });
     }
-    
+
     const podcasts = await storage.searchPodcasts(query);
     res.json(podcasts);
   });
@@ -201,16 +225,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/podcasts/:id", isProfessor, async (req, res) => {
     const podcastId = parseInt(req.params.id);
     const podcast = await storage.getPodcast(podcastId);
-    
+
     if (!podcast) {
       return res.status(404).json({ message: "Podcast not found" });
     }
-    
+
     // Check if user is the owner of the podcast
     if (podcast.professorId !== req.user?.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
-    
+
     const updatedPodcast = await storage.updatePodcast(podcastId, req.body);
     res.json(updatedPodcast);
   });
@@ -218,16 +242,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/podcasts/:id", isProfessor, async (req, res) => {
     const podcastId = parseInt(req.params.id);
     const podcast = await storage.getPodcast(podcastId);
-    
+
     if (!podcast) {
       return res.status(404).json({ message: "Podcast not found" });
     }
-    
+
     // Check if user is the owner of the podcast
     if (podcast.professorId !== req.user?.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
-    
+
     await storage.deletePodcast(podcastId);
     res.status(204).send();
   });
@@ -239,49 +263,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId: req.user?.id,
       };
-      
+
       const validatedData = insertPlaylistSchema.parse(playlistData);
       const playlist = await storage.createPlaylist(validatedData);
-      
+
       res.status(201).json(playlist);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
+    } catch (error: unknown) {
+      const err = error as Error;
+      res.status(400).json({ message: err.message });
     }
   });
 
   app.get("/api/playlists", isAuthenticated, async (req, res) => {
-    const playlists = await storage.getPlaylistsByUserId(req.user?.id);
+    const playlists = await storage.getPlaylistsByUserId(
+      parseInt(req.user?.id as string)
+    );
     res.json(playlists);
   });
 
   app.get("/api/playlists/:id", isAuthenticated, async (req, res) => {
     const playlist = await storage.getPlaylist(parseInt(req.params.id));
-    
+
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
-    
+
     // Check if user is the owner of the playlist
     if (playlist.userId !== req.user?.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
-    
+
     res.json(playlist);
   });
 
   app.patch("/api/playlists/:id", isAuthenticated, async (req, res) => {
     const playlistId = parseInt(req.params.id);
     const playlist = await storage.getPlaylist(playlistId);
-    
+
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
-    
+
     // Check if user is the owner of the playlist
     if (playlist.userId !== req.user?.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
-    
+
     const updatedPlaylist = await storage.updatePlaylist(playlistId, req.body);
     res.json(updatedPlaylist);
   });
@@ -289,16 +316,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/playlists/:id", isAuthenticated, async (req, res) => {
     const playlistId = parseInt(req.params.id);
     const playlist = await storage.getPlaylist(playlistId);
-    
+
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
-    
+
     // Check if user is the owner of the playlist
     if (playlist.userId !== req.user?.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
-    
+
     await storage.deletePlaylist(playlistId);
     res.status(204).send();
   });
@@ -308,49 +335,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const playlistId = parseInt(req.body.playlistId);
       const playlist = await storage.getPlaylist(playlistId);
-      
+
       if (!playlist) {
         return res.status(404).json({ message: "Playlist not found" });
       }
-      
+
       // Check if user is the owner of the playlist
       if (playlist.userId !== req.user?.id) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
+
       // Get current playlist items to determine the next order
       const playlistItems = await storage.getPlaylistItems(playlistId);
-      const nextOrder = playlistItems.length > 0 
-        ? Math.max(...playlistItems.map(item => item.order)) + 1 
-        : 0;
-      
+      const nextOrder =
+        playlistItems.length > 0
+          ? Math.max(...playlistItems.map((item) => item.order)) + 1
+          : 0;
+
       const playlistItemData = {
         ...req.body,
         order: nextOrder,
       };
-      
+
       const validatedData = insertPlaylistItemSchema.parse(playlistItemData);
       const playlistItem = await storage.addPodcastToPlaylist(validatedData);
-      
+
       res.status(201).json(playlistItem);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
+    } catch (error: unknown) {
+      const err = error as Error;
+      res.status(400).json({ message: err.message });
     }
   });
 
   app.get("/api/playlists/:id/items", isAuthenticated, async (req, res) => {
     const playlistId = parseInt(req.params.id);
     const playlist = await storage.getPlaylist(playlistId);
-    
+
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
-    
+
     // Check if user is the owner of the playlist
     if (playlist.userId !== req.user?.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
-    
+
     const playlistItems = await storage.getPlaylistItems(playlistId);
     res.json(playlistItems);
   });
@@ -358,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/playlist-items/:id", isAuthenticated, async (req, res) => {
     const playlistItemId = parseInt(req.params.id);
     // TODO: Add check to verify user owns the playlist this item belongs to
-    
+
     await storage.removePlaylistItem(playlistItemId);
     res.status(204).send();
   });
@@ -371,13 +400,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user?.id,
         podcastId: parseInt(req.params.id),
       };
-      
-      const validatedData = insertCommentSchema.parse(commentData);
+
+      const validatedData = insertPodcastCommentSchema.parse(commentData);
       const comment = await storage.createComment(validatedData);
-      
+
       res.status(201).json(comment);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
+    } catch (error: unknown) {
+      const err = error as Error;
+      res.status(400).json({ message: err.message });
     }
   });
 
@@ -395,47 +425,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Like routes
-  app.post("/api/podcasts/:id/likes", isAuthenticated, async (req, res) => {
-    try {
-      const podcastId = parseInt(req.params.id);
-      
-      // Check if the user already liked this podcast
-      const existingLike = await storage.getLikeByUserAndPodcast(req.user?.id, podcastId);
-      if (existingLike) {
-        return res.status(400).json({ message: "User already liked this podcast" });
-      }
-      
-      const likeData = {
-        userId: req.user?.id,
-        podcastId,
-      };
-      
-      const validatedData = insertLikeSchema.parse(likeData);
-      const like = await storage.createLike(validatedData);
-      
-      res.status(201).json(like);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  });
+  // app.post("/api/podcasts/:id/likes", isAuthenticated, async (req, res) => {
+  //   try {
+  //     const podcastId = parseInt(req.params.id);
 
-  app.get("/api/podcasts/:id/likes", async (req, res) => {
-    const podcastId = parseInt(req.params.id);
-    const likes = await storage.getLikesByPodcastId(podcastId);
-    res.json(likes);
-  });
+  //     // Check if the user already liked this podcast
+  //     const existingLike = await storage.getLikeByUserAndPodcast(req.user?.id, podcastId);
+  //     if (existingLike) {
+  //       return res.status(400).json({ message: "User already liked this podcast" });
+  //     }
 
-  app.delete("/api/podcasts/:id/likes", isAuthenticated, async (req, res) => {
-    const podcastId = parseInt(req.params.id);
-    const like = await storage.getLikeByUserAndPodcast(req.user?.id, podcastId);
-    
-    if (!like) {
-      return res.status(404).json({ message: "Like not found" });
-    }
-    
-    await storage.deleteLike(like.id);
-    res.status(204).send();
-  });
+  //     const likeData = {
+  //       userId: req.user?.id,
+  //       podcastId,
+  //     };
+
+  //     const validatedData = insertLikeSchema.parse(likeData);
+  //     const like = await storage.createLike(validatedData);
+
+  //     res.status(201).json(like);
+  //   } catch (error) {
+  //     res.status(400).json({ message: error.message });
+  //   }
+  // });
+
+  // app.get("/api/podcasts/:id/likes", async (req, res) => {
+  //   const podcastId = parseInt(req.params.id);
+  //   const likes = await storage.getLikesByPodcastId(podcastId);
+  //   res.json(likes);
+  // });
+
+  // app.delete("/api/podcasts/:id/likes", isAuthenticated, async (req, res) => {
+  //   const podcastId = parseInt(req.params.id);
+  //   const like = await storage.getLikeByUserAndPodcast(req.user?.id, podcastId);
+
+  //   if (!like) {
+  //     return res.status(404).json({ message: "Like not found" });
+  //   }
+
+  //   await storage.deleteLike(like.id);
+  //   res.status(204).send();
+  // });
 
   // View routes
   app.post("/api/podcasts/:id/views", isAuthenticated, async (req, res) => {
@@ -444,13 +474,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user?.id,
         podcastId: parseInt(req.params.id),
       };
-      
-      const validatedData = insertViewSchema.parse(viewData);
+
+      const validatedData = insertPodcastViewSchema.parse(viewData);
       const view = await storage.createView(validatedData);
-      
+
       res.status(201).json(view);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
+    } catch (error: unknown) {
+      const err = error as Error;
+      res.status(400).json({ message: err.message });
     }
   });
 

@@ -155,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: u.id,
         username: formData.username,
         full_name: formData.fullName,
+        email: formData.email,
         role: formData.role,
       });
       if (pErr) throw pErr;

@@ -8,6 +8,41 @@
       "when": 1745680776490,
       "tag": "0000_typical_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1755421648526,
+      "tag": "0001_chilly_karnak",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755436958154,
+      "tag": "0002_colossal_psynapse",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1755447828606,
+      "tag": "0003_quick_songbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1755448285988,
+      "tag": "0004_giant_turbo",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1755454222555,
+      "tag": "0005_clear_black_tarantula",
+      "breakpoints": true
     }
   ]
 }
