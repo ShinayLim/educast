@@ -52,7 +52,7 @@ export default function AdminsPage() {
           Manage Admins
         </h1>
         <p className="text-gray-500 dark:text-gray-400">
-          Approve or reject admin accounts
+          Approve, reject, or remove admin accounts
         </p>
 
         <Card className="shadow-md border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
@@ -78,7 +78,7 @@ export default function AdminsPage() {
                       <td className="px-4 py-2">{admin.full_name}</td>
                       <td className="px-4 py-2">{admin.email}</td>
                       <td className="px-4 py-2 capitalize">{admin.status}</td>
-                      <td className="px-4 py-2 flex gap-2">
+                      <td className="px-4 py-2 flex gap-2 ">
                         {admin.status === "pending" ? (
                           <>
                             <Button
@@ -106,9 +106,23 @@ export default function AdminsPage() {
                             </Button>
                           </>
                         ) : admin.status === "active" ? (
-                          <span className="text-green-600 font-medium">
-                            ✅ Already Approved
-                          </span>
+                          <div className="flex gap-20 items-center">
+                            <span className="text-green-600 font-medium">
+                              ✅ Approved
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() =>
+                                mutation.mutate({
+                                  id: admin.id,
+                                  status: "rejected",
+                                })
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
                         ) : (
                           <span className="text-red-500 font-medium">
                             ❌ Rejected
