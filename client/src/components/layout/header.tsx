@@ -140,7 +140,7 @@ export function Header({ onMenuClick, onSearch }: HeaderProps) {
           <div className="flex items-center gap-2">
             <Avatar>
               <AvatarImage
-                src={undefined /* or user.avatarUrl */}
+                src={user.avatarUrl || undefined}
                 alt={user.username}
               />
               <AvatarFallback>{getUserInitials()}</AvatarFallback>

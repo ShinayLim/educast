@@ -1,5 +1,13 @@
 import { Link } from "wouter";
-import { Play, Clock, MoreVertical } from "lucide-react";
+import {
+  Play,
+  Clock,
+  MoreVertical,
+  Heart,
+  Share2,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,6 +16,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import supabase from "@/lib/supabase";
+import { useState } from "react";
 
 interface PodcastCardProps {
   id: number;
@@ -20,6 +32,10 @@ interface PodcastCardProps {
   isNew?: boolean;
   isPopular?: boolean;
   className?: string;
+  likes?: number; // Add this
+  dislikes?: number; // Add this
+  isLiked?: boolean; // Add this
+  onLike?: () => void;
 }
 
 export function PodcastCard({
@@ -33,7 +49,56 @@ export function PodcastCard({
   isNew = false,
   isPopular = false,
   className,
+  likes = 0,
+  dislikes = 0,
+  isLiked = false,
+  onLike,
 }: PodcastCardProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [liked, setLiked] = useState(isLiked);
+
+  const handleLike = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to like podcasts",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (liked) {
+        await supabase
+          .from("podcast_likes")
+          .delete()
+          .eq("podcast_id", id)
+          .eq("user_id", user.id);
+      } else {
+        await supabase
+          .from("podcast_likes")
+          .insert({ podcast_id: id, user_id: user.id });
+      }
+
+      setLiked(!liked);
+      if (onLike) onLike();
+
+      toast({
+        title: liked ? "Removed from liked" : "Added to liked",
+        description: `"${title}" has been ${
+          liked ? "removed from" : "added to"
+        } your liked podcasts`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update like status",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Default thumbnails if not provided
   const defaultAudioThumbnail =
     "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";

@@ -82,9 +82,7 @@ export default function ProfessorProfilePage() {
                 className="w-24 h-24 rounded-full border border-border"
               />
               <div>
-                <h1 className="text-3xl font-bold text-primary">
-                  {professor.full_name}
-                </h1>
+                <h1 className="text-3xl font-bold">{professor.full_name}</h1>
                 <p className="text-muted-foreground">{professor.email}</p>
                 {professor.bio && (
                   <p className="mt-2 text-foreground">{professor.bio}</p>

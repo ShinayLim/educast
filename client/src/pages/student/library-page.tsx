@@ -5,9 +5,11 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { PodcastCard } from "@/components/podcast/podcast-card";
-import { Podcast, User, Playlist, Like } from "@shared/schema";
+import { Podcast, User, Playlist, PodcastLike } from "@shared/schema";
 import { Loader2, FolderPlus, List, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useEffect } from "react";
@@ -39,7 +41,9 @@ import {
 
 const createPlaylistSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
-  description: z.string().max(500, "Description cannot be longer than 500 characters"),
+  description: z
+    .string()
+    .max(500, "Description cannot be longer than 500 characters"),
 });
 
 export default function LibraryPage() {
@@ -47,14 +51,17 @@ export default function LibraryPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const [selectedPodcasts, setSelectedPodcasts] = useState<string[]>([]);
+
   // Redirect if user is a professor
   useEffect(() => {
     if (user && user.role === "professor") {
       navigate("/");
     }
   }, [user, navigate]);
-  
+
   // Form for creating a new playlist
   const form = useForm<z.infer<typeof createPlaylistSchema>>({
     resolver: zodResolver(createPlaylistSchema),
@@ -63,46 +70,52 @@ export default function LibraryPage() {
       description: "",
     },
   });
-  
+
   // Fetch playlists
-  const { data: playlists = [], isLoading: isLoadingPlaylists } = useQuery<Playlist[]>({
-    queryKey: ['/api/playlists'],
+  const { data: playlists = [], isLoading: isLoadingPlaylists } = useQuery<
+    Playlist[]
+  >({
+    queryKey: ["/api/playlists"],
     enabled: !!user,
   });
-  
+
   // Fetch liked podcasts
-  const { data: likes = [], isLoading: isLoadingLikes } = useQuery<Like[]>({
-    queryKey: ['/api/likes'],
+  const { data: likes = [], isLoading: isLoadingLikes } = useQuery<
+    PodcastLike[]
+  >({
+    queryKey: ["/api/likes"],
     enabled: !!user,
   });
-  
+
   // Fetch all podcasts
-  const { data: allPodcasts = [], isLoading: isLoadingPodcasts } = useQuery<Podcast[]>({
-    queryKey: ['/api/podcasts'],
+  const { data: allPodcasts = [], isLoading: isLoadingPodcasts } = useQuery<
+    Podcast[]
+  >({
+    queryKey: ["/api/podcasts"],
     enabled: !!user && likes.length > 0,
   });
-  
+
   // Fetch users (professors)
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ['/api/users'],
+    queryKey: ["/api/users"],
     enabled: !!user,
   });
-  
+
   // Filter podcasts that are liked by the user
-  const likedPodcasts = allPodcasts.filter(podcast => 
-    likes.some(like => like.podcastId === podcast.id)
+  const likedPodcasts = allPodcasts.filter((podcast) =>
+    likes.some((like) => like.podcast_id === podcast.id)
   );
-  
+
   // Create playlist mutation
   const createPlaylistMutation = useMutation({
     mutationFn: async (data: z.infer<typeof createPlaylistSchema>) => {
-      return apiRequest('POST', '/api/playlists', {
+      return apiRequest("POST", "/api/playlists", {
         ...data,
         userId: user?.id,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/playlists'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/playlists"] });
       toast({
         title: "Playlist created",
         description: "Your new playlist has been created successfully.",
@@ -118,20 +131,21 @@ export default function LibraryPage() {
       });
     },
   });
-  
+
   const onSubmit = (data: z.infer<typeof createPlaylistSchema>) => {
     createPlaylistMutation.mutate(data);
   };
-  
-  const isLoading = isLoadingPlaylists || isLoadingLikes || isLoadingPodcasts || isLoadingUsers;
+
+  const isLoading =
+    isLoadingPlaylists || isLoadingLikes || isLoadingPodcasts || isLoadingUsers;
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
       <div className="flex-1 md:ml-64">
-        <Header />
-        
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+
         <main className="container mx-auto px-4 pb-24 md:px-6">
           <div className="py-6">
             <div className="flex justify-between items-center mb-8">
@@ -141,7 +155,7 @@ export default function LibraryPage() {
                   Access your playlists and liked content
                 </p>
               </div>
-              
+
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button>
@@ -152,12 +166,16 @@ export default function LibraryPage() {
                   <DialogHeader>
                     <DialogTitle>Create New Playlist</DialogTitle>
                     <DialogDescription>
-                      Create a new playlist to organize your favorite educational content.
+                      Create a new playlist to organize your favorite
+                      educational content.
                     </DialogDescription>
                   </DialogHeader>
-                  
+
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-6"
+                    >
                       <FormField
                         control={form.control}
                         name="title"
@@ -165,7 +183,10 @@ export default function LibraryPage() {
                           <FormItem>
                             <FormLabel>Playlist Name</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="My Study Playlist" />
+                              <Input
+                                {...field}
+                                placeholder="My Study Playlist"
+                              />
                             </FormControl>
                             <FormDescription>
                               Give your playlist a descriptive name.
@@ -174,7 +195,7 @@ export default function LibraryPage() {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="description"
@@ -192,16 +213,16 @@ export default function LibraryPage() {
                           </FormItem>
                         )}
                       />
-                      
+
                       <DialogFooter>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           onClick={() => setIsDialogOpen(false)}
                         >
                           Cancel
                         </Button>
-                        <Button 
+                        <Button
                           type="submit"
                           disabled={createPlaylistMutation.isPending}
                         >
@@ -216,46 +237,53 @@ export default function LibraryPage() {
                 </DialogContent>
               </Dialog>
             </div>
-            
+
             <div className="space-y-10">
               {/* Playlists Section */}
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold">Your Playlists</h2>
                 </div>
-                
+
                 {isLoading ? (
                   <div className="flex justify-center items-center h-64">
                     <Loader2 className="w-10 h-10 animate-spin text-primary" />
                   </div>
                 ) : playlists.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {playlists.map(playlist => (
+                    {playlists.map((playlist) => (
                       <Link key={playlist.id} href={`/playlist/${playlist.id}`}>
                         <a className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
                           <div className="bg-primary/10 border-b border-primary/20 aspect-square flex items-center justify-center">
                             <List className="h-16 w-16 text-primary/60" />
                           </div>
                           <div className="p-4">
-                            <h3 className="font-bold mb-2 line-clamp-1">{playlist.title}</h3>
+                            <h3 className="font-bold mb-2 line-clamp-1">
+                              {playlist.title}
+                            </h3>
                             {playlist.description && (
                               <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                                 {playlist.description}
                               </p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                              Created {new Date(playlist.createdAt).toLocaleDateString()}
+                              Created{" "}
+                              {new Date(
+                                playlist.created_at
+                              ).toLocaleDateString()}
                             </p>
                           </div>
                         </a>
                       </Link>
                     ))}
-                    
+
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                       <DialogTrigger asChild>
                         <div className="bg-card border border-dashed border-border rounded-lg overflow-hidden transition-all hover:border-primary hover:shadow-lg flex flex-col items-center justify-center h-full aspect-square cursor-pointer p-6">
                           <FolderPlus className="h-12 w-12 text-muted-foreground mb-4" />
-                          <p className="text-center font-medium">Create New Playlist</p>
+                          <p className="text-center font-medium">
+                            Create New Playlist
+                          </p>
                           <p className="text-xs text-muted-foreground text-center mt-2">
                             Organize your favorite educational content
                           </p>
@@ -268,7 +296,8 @@ export default function LibraryPage() {
                     <ListPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                     <h3 className="text-xl font-bold mb-2">No playlists yet</h3>
                     <p className="text-muted-foreground mb-6">
-                      Create your first playlist to organize your favorite educational content.
+                      Create your first playlist to organize your favorite
+                      educational content.
                     </p>
                     <Button onClick={() => setIsDialogOpen(true)}>
                       Create Your First Playlist
@@ -276,7 +305,7 @@ export default function LibraryPage() {
                   </div>
                 )}
               </div>
-              
+
               {/* Liked Content Section */}
               {/* <div>
                 <div className="flex items-center justify-between mb-6">
@@ -322,7 +351,7 @@ export default function LibraryPage() {
             </div>
           </div>
         </main>
-        
+
         <MobileNav />
       </div>
     </div>

@@ -2,7 +2,7 @@
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import supabase from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { Loader2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -12,7 +12,9 @@ import ReactPlayer from "react-player";
 import { useAuth } from "@/hooks/use-auth";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { comment } from "postcss";
+import { cn } from "@/lib/utils";
 
 export default function PlayerPage() {
   const { id } = useParams();
@@ -20,6 +22,15 @@ export default function PlayerPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isLiked, setIsLiked] = useState(false);
+  const [activeInteractions, setActiveInteractions] = useState<Set<string>>(
+    new Set()
+  );
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
+  const [dislikedComments, setDislikedComments] = useState<Set<string>>(
+    new Set()
+  );
 
   const { data: podcast, isLoading } = useQuery({
     queryKey: [`/player/${id}`],
@@ -58,6 +69,118 @@ export default function PlayerPage() {
       viewMutation.mutate();
     }
   }, [podcast, id]);
+
+  // Check if user has liked the podcast
+  const { data: likeStatus } = useQuery({
+    queryKey: [`/player/${id}/like-status`],
+    queryFn: async () => {
+      if (!user?.id) return false;
+
+      const { data } = await supabase
+        .from("podcast_likes")
+        .select()
+        .eq("podcast_id", id)
+        .eq("user_id", user.id)
+        .single();
+
+      return !!data;
+    },
+    enabled: !!user?.id && !!id,
+  });
+
+  useEffect(() => {
+    setIsLiked(!!likeStatus);
+  }, [likeStatus]);
+
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Must be logged in to like podcasts");
+
+      // First update the likes table
+      if (isLiked) {
+        // Unlike - First delete from podcast_likes
+        const { error: deleteError } = await supabase
+          .from("podcast_likes")
+          .delete()
+          .eq("podcast_id", id)
+          .eq("user_id", user.id);
+
+        if (deleteError) throw deleteError;
+
+        // Then decrement the count in podcasts table
+        const { error: updateError } = await supabase.rpc(
+          "decrement_podcast_likes",
+          {
+            podcast_id: id,
+          }
+        );
+
+        if (updateError) throw updateError;
+      } else {
+        // Like - First insert into podcast_likes
+        try {
+          const { error: insertError } = await supabase
+            .from("podcast_likes")
+            .insert({
+              podcast_id: id,
+              user_id: user.id,
+              created_at: new Date().toISOString(),
+            });
+
+          if (insertError) throw insertError;
+
+          // Then increment the count in podcasts table
+          const { error: updateError } = await supabase.rpc(
+            "increment_podcast_likes",
+            {
+              podcast_id: id,
+            }
+          );
+
+          if (updateError) throw updateError;
+        } catch (error: any) {
+          // If duplicate like, just ignore
+          if (error.code === "23505") {
+            return;
+          }
+          throw error;
+        }
+      }
+    },
+    onSuccess: () => {
+      setIsLiked(!isLiked);
+      queryClient.invalidateQueries({
+        queryKey: [`/player/${id}/like-status`],
+      });
+      queryClient.invalidateQueries({ queryKey: [`/player/${id}`] });
+      toast({
+        title: isLiked ? "Podcast unliked" : "Podcast liked",
+        description: isLiked
+          ? "Removed from your liked podcasts"
+          : "Added to your liked podcasts",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update like status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLike = () => {
+    if (!user) {
+      console.log("AHA!");
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to like podcasts",
+        variant: "destructive",
+      });
+      return;
+    }
+    likeMutation.mutate();
+  };
 
   const { data: comments = [], isLoading: loadingComments } = useQuery({
     queryKey: [`/player/${id}/comments`],
@@ -113,31 +236,167 @@ export default function PlayerPage() {
     },
   });
 
+  const { data: userInteractions = [] } = useQuery({
+    queryKey: [`/player/${id}/comment-interactions`],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase
+        .from("comment_interactions")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
   const likeCommentMutation = useMutation({
+    mutationKey: ["likeComment"],
     mutationFn: async (commentId: string) => {
-      const { error } = await supabase.rpc("increment_like", {
-        row_id: commentId,
-      });
-      if (error) {
-        throw new Error(error.message || "Failed to like comment");
+      if (!user) throw new Error("Must be logged in to like comments");
+
+      if (activeInteractions.has(commentId)) return;
+
+      setActiveInteractions((prev) => new Set(prev).add(commentId));
+
+      try {
+        const existingInteraction = userInteractions.find(
+          (i) => i.comment_id === commentId
+        );
+
+        if (existingInteraction) {
+          if (existingInteraction.interaction_type === "like") {
+            // Remove like
+            await supabase
+              .from("comment_interactions")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("comment_id", commentId);
+
+            await supabase.rpc("decrement_comment_count", {
+              comment_id: commentId,
+              column_name: "likes",
+            });
+          } else {
+            // Switch from dislike to like
+            await supabase
+              .from("comment_interactions")
+              .update({ interaction_type: "like" })
+              .eq("user_id", user.id)
+              .eq("comment_id", commentId);
+
+            await supabase.rpc("increment_comment_count", {
+              comment_id: commentId,
+              column_name: "likes",
+            });
+            await supabase.rpc("decrement_comment_count", {
+              comment_id: commentId,
+              column_name: "dislikes",
+            });
+          }
+        } else {
+          // New like
+          await supabase.from("comment_interactions").insert({
+            user_id: user.id,
+            comment_id: commentId,
+            interaction_type: "like",
+          });
+
+          await supabase.rpc("increment_comment_count", {
+            comment_id: commentId,
+            column_name: "likes",
+          });
+        }
+      } finally {
+        setActiveInteractions((prev) => {
+          const next = new Set(prev);
+          next.delete(commentId);
+          return next;
+        });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/player/${id}/comments`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/player/${id}/comment-interactions`],
+      });
     },
   });
 
+  // Similar update for dislikeCommentMutation...
+
   const dislikeCommentMutation = useMutation({
+    mutationKey: ["dislikeComment"],
     mutationFn: async (commentId: string) => {
-      const { error } = await supabase.rpc("increment_dislike", {
-        row_id: commentId,
-      });
-      if (error) {
-        throw new Error(error.message || "Failed to dislike comment");
+      if (!user) throw new Error("Must be logged in to dislike comments");
+
+      if (activeInteractions.has(commentId)) return;
+
+      setActiveInteractions((prev) => new Set(prev).add(commentId));
+
+      try {
+        const existingInteraction = userInteractions.find(
+          (i) => i.comment_id === commentId
+        );
+
+        if (existingInteraction) {
+          if (existingInteraction.interaction_type === "dislike") {
+            // Remove dislike
+            await supabase
+              .from("comment_interactions")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("comment_id", commentId);
+
+            await supabase.rpc("decrement_comment_count", {
+              comment_id: commentId,
+              column_name: "dislikes",
+            });
+          } else {
+            // Switch from like to dislike
+            await supabase
+              .from("comment_interactions")
+              .update({ interaction_type: "dislike" })
+              .eq("user_id", user.id)
+              .eq("comment_id", commentId);
+
+            await supabase.rpc("decrement_comment_count", {
+              comment_id: commentId,
+              column_name: "likes",
+            });
+            await supabase.rpc("increment_comment_count", {
+              comment_id: commentId,
+              column_name: "dislikes",
+            });
+          }
+        } else {
+          // New dislike
+          await supabase.from("comment_interactions").insert({
+            user_id: user.id,
+            comment_id: commentId,
+            interaction_type: "dislike",
+          });
+
+          await supabase.rpc("increment_comment_count", {
+            comment_id: commentId,
+            column_name: "dislikes",
+          });
+        }
+      } finally {
+        setActiveInteractions((prev) => {
+          const next = new Set(prev);
+          next.delete(commentId);
+          return next;
+        });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/player/${id}/comments`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/player/${id}/comment-interactions`],
+      });
     },
   });
 
@@ -204,6 +463,20 @@ export default function PlayerPage() {
                     width="100%"
                     height="480px"
                   />
+                </div>
+
+                <div className="flex items-center gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLike}
+                    className={cn(isLiked && "text-red-500")}
+                  >
+                    <Heart
+                      className={cn("h-4 w-4 mr-2", isLiked && "fill-current")}
+                    />
+                    {isLiked ? "Unlike" : "Like"}
+                  </Button>
                 </div>
 
                 <div className="mt-8 space-y-4">
@@ -297,22 +570,48 @@ export default function PlayerPage() {
                                     <p>{c.comment}</p>
                                     <div className="flex gap-2 mt-2">
                                       <Button
+                                        key={`like-${c.id}`} // Add unique key
                                         variant="outline"
                                         size="sm"
                                         onClick={() =>
                                           likeCommentMutation.mutate(c.id)
                                         }
+                                        className={cn(
+                                          userInteractions.some(
+                                            (i) =>
+                                              i.comment_id === c.id &&
+                                              i.interaction_type === "like"
+                                          ) && "text-primary"
+                                        )}
+                                        disabled={
+                                          activeInteractions.has(c.id) ||
+                                          likeCommentMutation.isPending ||
+                                          dislikeCommentMutation.isPending
+                                        }
                                       >
-                                        👍 {c.likes}
+                                        👍 {c.likes || 0}
                                       </Button>
                                       <Button
+                                        key={`dislike-${c.id}`} // Add unique key
                                         variant="outline"
                                         size="sm"
                                         onClick={() =>
                                           dislikeCommentMutation.mutate(c.id)
                                         }
+                                        className={cn(
+                                          userInteractions.some(
+                                            (i) =>
+                                              i.comment_id === c.id &&
+                                              i.interaction_type === "dislike"
+                                          ) && "text-destructive"
+                                        )}
+                                        disabled={
+                                          activeInteractions.has(c.id) ||
+                                          likeCommentMutation.isPending ||
+                                          dislikeCommentMutation.isPending
+                                        }
                                       >
-                                        👎 {c.dislikes}
+                                        👎 {c.dislikes || 0}
                                       </Button>
                                       {c.user_id === user?.id && (
                                         <Button

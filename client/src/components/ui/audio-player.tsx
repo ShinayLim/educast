@@ -1,20 +1,28 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Play, Pause, SkipBack, SkipForward, 
-  Volume2, VolumeX, Download, Heart, HeartCrack, 
-  Share2, ListPlus 
-} from 'lucide-react';
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+  Download,
+  Heart,
+  HeartCrack,
+  Share2,
+  ListPlus,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/slider";
-import { cn } from '@/lib/utils';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
+import { cn } from "@/lib/utils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface AudioPlayerProps {
   audioSrc: string;
@@ -52,10 +60,10 @@ export function AudioPlayer({
     const registerView = async () => {
       try {
         if (user) {
-          await apiRequest('POST', `/api/podcasts/${podcastId}/views`);
+          await apiRequest("POST", `/api/podcasts/${podcastId}/views`);
         }
       } catch (error) {
-        console.error('Failed to register view:', error);
+        console.error("Failed to register view:", error);
       }
     };
 
@@ -143,24 +151,24 @@ export function AudioPlayer({
   };
 
   const formatTime = (time: number) => {
-    if (isNaN(time)) return '0:00';
-    
+    if (isNaN(time)) return "0:00";
+
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const handleLike = async () => {
     try {
       if (liked) {
-        await apiRequest('DELETE', `/api/podcasts/${podcastId}/likes`);
+        await apiRequest("DELETE", `/api/podcasts/${podcastId}/likes`);
         setLiked(false);
         toast({
           title: "Removed from liked podcasts",
           description: `"${title}" has been removed from your liked podcasts.`,
         });
       } else {
-        await apiRequest('POST', `/api/podcasts/${podcastId}/likes`);
+        await apiRequest("POST", `/api/podcasts/${podcastId}/likes`);
         setLiked(true);
         toast({
           title: "Added to liked podcasts",
@@ -168,7 +176,9 @@ export function AudioPlayer({
         });
       }
       // Invalidate cache for this podcast
-      queryClient.invalidateQueries({ queryKey: [`/api/podcasts/${podcastId}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/podcasts/${podcastId}`],
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -179,13 +189,13 @@ export function AudioPlayer({
   };
 
   const handleDownload = () => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = audioSrc;
-    link.download = `${title.replace(/\s+/g, '_')}.mp3`;
+    link.download = `${title.replace(/\s+/g, "_")}.mp3`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast({
       title: "Download started",
       description: `Downloading "${title}"`,
@@ -194,11 +204,13 @@ export function AudioPlayer({
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: title,
-        text: `Listen to ${title} by ${author}`,
-        url: window.location.href,
-      }).catch((error) => console.log('Error sharing', error));
+      navigator
+        .share({
+          title: title,
+          text: `Listen to ${title} by ${author}`,
+          url: window.location.href,
+        })
+        .catch((error) => console.log("Error sharing", error));
     } else {
       navigator.clipboard.writeText(window.location.href).then(() => {
         toast({
@@ -210,22 +222,27 @@ export function AudioPlayer({
   };
 
   return (
-    <div className={cn("w-full p-4 audio-player rounded-lg fixed bottom-0 left-0 right-0 z-50", className)}>
-      <audio 
+    <div
+      className={cn(
+        "w-full p-4 audio-player rounded-lg fixed bottom-0 left-0 right-0 z-50",
+        className
+      )}
+    >
+      <audio
         ref={audioRef}
         src={audioSrc}
         onLoadedMetadata={onLoadedMetadata}
         onTimeUpdate={onTimeUpdate}
         onEnded={onEnded}
       />
-      
+
       <div className="flex items-center justify-between">
         {/* Podcast info */}
         <div className="flex items-center gap-3 w-1/4">
           {thumbnailUrl && (
-            <img 
-              src={thumbnailUrl} 
-              alt={title} 
+            <img
+              src={thumbnailUrl}
+              alt={title}
               className="w-12 h-12 rounded object-cover"
             />
           )}
@@ -234,24 +251,33 @@ export function AudioPlayer({
             <p className="text-xs text-muted-foreground truncate">{author}</p>
           </div>
         </div>
-        
+
         {/* Player controls */}
         <div className="flex flex-col items-center w-1/2">
           <div className="flex items-center gap-4 mb-2">
-            <button onClick={() => skip(-10)} className="text-muted-foreground hover:text-foreground">
+            <button
+              title="Rewind 10 seconds"
+              onClick={() => skip(-10)}
+              className="text-muted-foreground hover:text-foreground"
+            >
               <SkipBack size={20} />
             </button>
-            <button 
-              onClick={togglePlay} 
+            <button
+              title="Play/Pause"
+              onClick={togglePlay}
               className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground"
             >
               {isPlaying ? <Pause size={20} /> : <Play size={20} />}
             </button>
-            <button onClick={() => skip(10)} className="text-muted-foreground hover:text-foreground">
+            <button
+              title="Skip forward 10 seconds"
+              onClick={() => skip(10)}
+              className="text-muted-foreground hover:text-foreground"
+            >
               <SkipForward size={20} />
             </button>
           </div>
-          
+
           <div className="flex items-center gap-2 w-full">
             <span className="text-xs text-muted-foreground w-8 text-right">
               {formatTime(currentTime)}
@@ -269,12 +295,20 @@ export function AudioPlayer({
             </span>
           </div>
         </div>
-        
+
         {/* Additional controls */}
         <div className="flex items-center gap-3 w-1/4 justify-end">
           <div className="flex items-center gap-2">
-            <button onClick={toggleMute} className="text-muted-foreground hover:text-foreground">
-              {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            <button
+              title="Mute/Unmute"
+              onClick={toggleMute}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {isMuted || volume === 0 ? (
+                <VolumeX size={20} />
+              ) : (
+                <Volume2 size={20} />
+              )}
             </button>
             <Slider
               value={[isMuted ? 0 : volume]}
@@ -285,12 +319,13 @@ export function AudioPlayer({
               className="w-20"
             />
           </div>
-          
+
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button 
-                  onClick={handleLike} 
+                <button
+                  title="Like/Unlike"
+                  onClick={handleLike}
                   className={cn(
                     "p-1 rounded-full hover:bg-secondary",
                     liked && "text-destructive"
@@ -300,14 +335,15 @@ export function AudioPlayer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                {liked ? 'Remove from liked' : 'Add to liked'}
+                {liked ? "Remove from liked" : "Add to liked"}
               </TooltipContent>
             </Tooltip>
-            
+
             <Tooltip>
               <TooltipTrigger asChild>
-                <button 
-                  onClick={handleShare} 
+                <button
+                  title="Share"
+                  onClick={handleShare}
                   className="p-1 rounded-full hover:bg-secondary"
                 >
                   <Share2 size={20} />
@@ -315,12 +351,13 @@ export function AudioPlayer({
               </TooltipTrigger>
               <TooltipContent>Share</TooltipContent>
             </Tooltip>
-            
+
             {canDownload && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button 
-                    onClick={handleDownload} 
+                  <button
+                    title="Download"
+                    onClick={handleDownload}
                     className="p-1 rounded-full hover:bg-secondary"
                   >
                     <Download size={20} />
@@ -329,10 +366,11 @@ export function AudioPlayer({
                 <TooltipContent>Download</TooltipContent>
               </Tooltip>
             )}
-            
+
             <Tooltip>
               <TooltipTrigger asChild>
-                <button 
+                <button
+                  title="Add to playlist"
                   className="p-1 rounded-full hover:bg-secondary"
                 >
                   <ListPlus size={20} />
