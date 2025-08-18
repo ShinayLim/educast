@@ -17,7 +17,7 @@ async function signupAdmin({
   email: string;
   password: string;
 }) {
-  // Step 1: Create an auth user
+  // Step 1: Create auth user
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -25,7 +25,7 @@ async function signupAdmin({
 
   if (error) throw error;
 
-  // Step 2: Insert into profiles with role = admin, status = pending
+  // Step 2: Insert profile with role = admin, status = pending
   if (data.user) {
     const { error: insertError } = await supabase.from("profiles").insert([
       {
@@ -39,6 +39,9 @@ async function signupAdmin({
     ]);
 
     if (insertError) throw insertError;
+
+    // Step 3: Immediately sign out to prevent auto-login
+    await supabase.auth.signOut();
   }
 
   return data;
@@ -54,8 +57,8 @@ export default function AdminSignup() {
   const mutation = useMutation({
     mutationFn: signupAdmin,
     onSuccess: () => {
-      alert("Signup successful! Waiting for SuperAdmin approval.");
-      navigate("/"); // go back to home or login page
+      alert("Signup successful! Your account is pending SuperAdmin approval.");
+      navigate("/admin/login");
     },
     onError: (err: any) => {
       alert(err.message);
