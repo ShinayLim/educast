@@ -13,7 +13,7 @@ export default function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { logout } = useAuth();
 
   const links = [
@@ -30,6 +30,15 @@ export default function SuperAdminLayout({
     },
     { href: "/superadmin/students", label: "Manage Students", icon: Users },
   ];
+
+  async function handleLogout() {
+    try {
+      await logout(); // clears Supabase session + context
+      navigate("/superadmin/login"); // redirect to login page
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  }
 
   return (
     <div className="flex h-screen">
@@ -64,7 +73,7 @@ export default function SuperAdminLayout({
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900">
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="flex items-center justify-center gap-2 w-full py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
           >
             <LogOut className="w-5 h-5" />
