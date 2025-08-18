@@ -37,7 +37,9 @@ async function fetchAdmins() {
     .from("profiles")
     .select("id, full_name, email, created_at, status")
     .eq("role", "admin")
+    .eq("status", "active") // <-- only active admins
     .order("created_at", { ascending: false });
+
   if (error) throw error;
   return data;
 }
@@ -159,16 +161,8 @@ export default function SuperAdminDashboard() {
                     >
                       <td className="px-4 py-2">{admin.full_name}</td>
                       <td className="px-4 py-2">{admin.email}</td>
-                      <td
-                        className={`px-4 py-2 capitalize ${
-                          admin.status === "active"
-                            ? "text-green-500"
-                            : admin.status === "pending"
-                            ? "text-yellow-500"
-                            : "text-red-500"
-                        }`}
-                      >
-                        {admin.status}
+                      <td className="px-4 py-2 text-green-500 font-medium">
+                        Active
                       </td>
                       <td className="px-4 py-2">
                         {new Date(admin.created_at).toLocaleDateString()}
@@ -178,7 +172,7 @@ export default function SuperAdminDashboard() {
                 ) : (
                   <tr>
                     <td colSpan={4} className="px-4 py-2 text-gray-400">
-                      No admins found
+                      No active admins found
                     </td>
                   </tr>
                 )}
