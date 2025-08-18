@@ -58,7 +58,7 @@ export default function AdminSignup() {
     mutationFn: signupAdmin,
     onSuccess: () => {
       alert("Signup successful! Your account is pending SuperAdmin approval.");
-      navigate("/"); // redirect to home or login page
+      navigate("/admin/login");
     },
     onError: (err: any) => {
       alert(err.message);

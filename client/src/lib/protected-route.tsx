@@ -43,7 +43,7 @@ export function ProtectedRoute({
   if (user.role === "student" && path.startsWith("/student") === false) {
     return (
       <Route path={path}>
-        <Redirect to="/student/library" />
+        <Redirect to="/auth" />
       </Route>
     );
   }
@@ -51,7 +51,7 @@ export function ProtectedRoute({
   if (user.role === "professor" && path.startsWith("/professor") === false) {
     return (
       <Route path={path}>
-        <Redirect to="/professor/manage" />
+        <Redirect to="/auth" />
       </Route>
     );
   }
