@@ -22,6 +22,7 @@ export function ProtectedRoute({
   }
 
   if (!user) {
+    // not logged in → go to auth page
     return (
       <Route path={path}>
         <Redirect to="/auth" />
@@ -29,5 +30,48 @@ export function ProtectedRoute({
     );
   }
 
+  // 🚨 prevent admins from logging in if not active
+  if (user.role === "admin" && user.status !== "active") {
+    return (
+      <Route path={path}>
+        <Redirect to="/admin/login" />
+      </Route>
+    );
+  }
+
+  // ✅ role-based redirects (so they don’t land on student dashboard accidentally)
+  if (user.role === "student" && path.startsWith("/student") === false) {
+    return (
+      <Route path={path}>
+        <Redirect to="/student/library" />
+      </Route>
+    );
+  }
+
+  if (user.role === "professor" && path.startsWith("/professor") === false) {
+    return (
+      <Route path={path}>
+        <Redirect to="/professor/manage" />
+      </Route>
+    );
+  }
+
+  if (user.role === "admin" && path.startsWith("/admin") === false) {
+    return (
+      <Route path={path}>
+        <Redirect to="/admin/dashboard" />
+      </Route>
+    );
+  }
+
+  if (user.role === "superadmin" && path.startsWith("/superadmin") === false) {
+    return (
+      <Route path={path}>
+        <Redirect to="/superadmin/dashboard" />
+      </Route>
+    );
+  }
+
+  // ✅ if all checks pass → render page
   return <Route path={path} component={Component} />;
 }

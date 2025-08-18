@@ -12,27 +12,27 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { User as SBUser, Session } from "@supabase/supabase-js";
 import supabase from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-
 // ────────────────────────────────────────────────────────────
-// 1) Your “shape” for a logged-in user
+// 1) Shape for logged-in user
 // ────────────────────────────────────────────────────────────
 export type SelectUser = {
   id: string;
   email: string;
   fullName: string;
   username: string;
-  role: "student" | "professor";
+  role: "student" | "professor" | "admin" | "superadmin";
+  status: "pending" | "active" | "rejected"; // ✅ Added
 };
 
 // ────────────────────────────────────────────────────────────
-// 2) Zod schemas + resolvers for Register & Login forms
+// 2) Zod schemas
 // ────────────────────────────────────────────────────────────
 export const registerSchema = z.object({
   username: z.string().min(1),
   email: z.string().email(),
   fullName: z.string().min(2),
   password: z.string().min(8),
-  role: z.enum(["professor", "student"]),
+  role: z.enum(["professor", "student", "admin"]), // ✅ allow admin too
 });
 export type RegisterData = z.infer<typeof registerSchema>;
 export const registerResolver = zodResolver(registerSchema);
@@ -52,7 +52,6 @@ interface AuthContextType {
   isLoading: boolean;
   error: Error | null;
 
-  // expose these async functions to your forms/components:
   register: (data: RegisterData) => Promise<SelectUser>;
   login: (data: LoginData) => Promise<SelectUser>;
   logout: () => Promise<void>;
@@ -75,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("username, full_name, role")
+        .select("username, full_name, role, status") // ✅ added status
         .eq("id", u.id)
         .single();
 
@@ -89,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username: profile.username!,
         fullName: profile.full_name!,
         role: profile.role as SelectUser["role"],
+        status: profile.status as SelectUser["status"], // ✅ include status
       };
     } catch (err) {
       console.error("Error fetching profile:", err);
@@ -99,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // 1) on first load, see if there's already a session
     supabase.auth
       .getSession()
       .then(({ data, error: sessErr }) => {
@@ -115,7 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted) setLoading(false);
       });
 
-    // 2) subscribe to future sign-in / sign-out events
     const { data } = supabase.auth.onAuthStateChange(
       (_event, session: Session | null) => {
         if (session?.user) {
@@ -127,7 +125,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     );
-    // note: supabase-js v2 returns `{ data: { subscription } }`
     const subscription = (data as any).subscription;
 
     return () => {
@@ -137,19 +134,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ────────────────────────────────────────────────────────────
-  // 5) React-Query mutations for register / login / logout
+  // 5) React-Query mutations
   // ────────────────────────────────────────────────────────────
 
   const registerMutation = useMutation<SelectUser, Error, RegisterData>({
     mutationFn: async (formData: RegisterData) => {
-      // 1) create the Auth user
       const { data: sData, error: sErr } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
       if (sErr) throw sErr;
 
-      // 2) write your extra profile columns
       const u = sData.user!;
       const { error: pErr } = await supabase.from("profiles").insert({
         id: u.id,
@@ -157,17 +152,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: formData.fullName,
         email: formData.email,
         role: formData.role,
+        status: formData.role === "admin" ? "pending" : "active", // ✅ admins default to pending
       });
       if (pErr) throw pErr;
 
-      // return the full shape
       return fetchProfile(u);
     },
     onSuccess: (u) => {
       setUser(u);
       toast({
         title: "Registration successful",
-        description: `Welcome, ${u.fullName}!`,
+        description:
+          u.role === "admin"
+            ? "Waiting for SuperAdmin approval."
+            : `Welcome, ${u.fullName}!`,
       });
     },
     onError: (err) => {
@@ -193,7 +191,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u);
       toast({
         title: "Login successful",
-        description: `Welcome back, ${u.fullName}!`,
+        description:
+          u.status !== "active"
+            ? "Your account is not active yet."
+            : `Welcome back, ${u.fullName}!`,
       });
     },
     onError: (err) => {
@@ -226,9 +227,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // ────────────────────────────────────────────────────────────
-  // 6) Context value & render
-  // ────────────────────────────────────────────────────────────
   const value: AuthContextType = {
     user,
     isLoading,
@@ -242,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 // ────────────────────────────────────────────────────────────
-// 7) Hook to consume the context
+// 7) Hook
 // ────────────────────────────────────────────────────────────
 export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
