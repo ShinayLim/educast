@@ -22,6 +22,7 @@ export type SelectUser = {
   fullName: string;
   username: string;
   role: "student" | "professor";
+  avatarUrl?: string; // optional, if you have avatars
 };
 
 // ────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("username, full_name, role")
+        .select("username, full_name, role, avatar_url")
         .eq("id", u.id)
         .single();
 
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username: profile.username!,
         fullName: profile.full_name!,
         role: profile.role as SelectUser["role"],
+        avatarUrl: profile.avatar_url || undefined,
       };
     } catch (err) {
       console.error("Error fetching profile:", err);

@@ -52,12 +52,12 @@ export default function StudentProfilePage() {
             {/* Profile Section */}
             <div className="flex items-center gap-6 mb-10">
               <img
-                src={student.avatarUrl || "/default-avatar.png"}
-                alt={student.fullName}
+                src={student.avatar_url || "/default-avatar.png"}
+                alt={student.full_name}
                 className="w-24 h-24 rounded-full border border-border"
               />
               <div className="flex flex-col">
-                <h1 className="text-3xl font-bold">{student.fullName}</h1>
+                <h1 className="text-3xl font-bold">{student.full_name}</h1>
                 <p className="text-muted-foreground">{student.email}</p>
                 {student.bio && (
                   <p className="mt-2 text-foreground">{student.bio}</p>

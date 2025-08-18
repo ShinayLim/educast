@@ -64,53 +64,53 @@ export const profiles = pgTable(
   ]
 );
 
-export const podcastsLink = pgTable(
-  "podcasts_link",
-  {
-    id: uuid().defaultRandom().primaryKey().notNull(),
-    title: text().notNull(),
-    description: text().notNull(),
-    tags: text().array(),
-    media_url: text("media_url").notNull(),
-    uploaded_by: uuid("uploaded_by").notNull(),
-    created_at: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).defaultNow(),
-    updated_at: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).defaultNow(),
-  },
-  (table) => [
-    pgPolicy("Users can insert their own podcasts", {
-      as: "permissive",
-      for: "insert",
-      to: ["public"],
-      withCheck: sql`(auth.uid() = uploaded_by)`,
-    }),
-    pgPolicy("Professors can insert", {
-      as: "permissive",
-      for: "insert",
-      to: ["public"],
-    }),
-    pgPolicy("Only uploader can update", {
-      as: "permissive",
-      for: "update",
-      to: ["authenticated"],
-    }),
-    pgPolicy("Only uploader can delete", {
-      as: "permissive",
-      for: "delete",
-      to: ["authenticated"],
-    }),
-    pgPolicy("All authenticated users can read", {
-      as: "permissive",
-      for: "select",
-      to: ["authenticated"],
-    }),
-  ]
-);
+// export const podcastsLink = pgTable(
+//   "podcasts_link",
+//   {
+//     id: uuid().defaultRandom().primaryKey().notNull(),
+//     title: text().notNull(),
+//     description: text().notNull(),
+//     tags: text().array(),
+//     media_url: text("media_url").notNull(),
+//     uploaded_by: uuid("uploaded_by").notNull(),
+//     created_at: timestamp("created_at", {
+//       withTimezone: true,
+//       mode: "string",
+//     }).defaultNow(),
+//     updated_at: timestamp("updated_at", {
+//       withTimezone: true,
+//       mode: "string",
+//     }).defaultNow(),
+//   },
+//   (table) => [
+//     pgPolicy("Users can insert their own podcasts", {
+//       as: "permissive",
+//       for: "insert",
+//       to: ["public"],
+//       withCheck: sql`(auth.uid() = uploaded_by)`,
+//     }),
+//     pgPolicy("Professors can insert", {
+//       as: "permissive",
+//       for: "insert",
+//       to: ["public"],
+//     }),
+//     pgPolicy("Only uploader can update", {
+//       as: "permissive",
+//       for: "update",
+//       to: ["authenticated"],
+//     }),
+//     pgPolicy("Only uploader can delete", {
+//       as: "permissive",
+//       for: "delete",
+//       to: ["authenticated"],
+//     }),
+//     pgPolicy("All authenticated users can read", {
+//       as: "permissive",
+//       for: "select",
+//       to: ["authenticated"],
+//     }),
+//   ]
+// );
 
 export const userRoles = pgTable(
   "user_roles",
@@ -161,6 +161,35 @@ export const podcastViews = pgTable(
   ]
 );
 
+export const podcastLikes = pgTable(
+  "podcast_likes",
+  {
+    id: uuid()
+      .default(sql`uuid_generate_v4()`)
+      .primaryKey()
+      .notNull(),
+    user_id: uuid("user_id").notNull(),
+    podcast_id: uuid("podcast_id").notNull(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => [
+    unique("podcast_likes_user_podcast").on(table.user_id, table.podcast_id),
+    foreignKey({
+      columns: [table.user_id],
+      foreignColumns: [profiles.id],
+      name: "podcast_likes_user_id_fkey",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.podcast_id],
+      foreignColumns: [podcasts.id],
+      name: "podcast_likes_podcast_id_fkey",
+    }).onDelete("cascade"),
+  ]
+);
+
 export const podcastsComments = pgTable(
   "podcasts_comments",
   {
@@ -191,6 +220,43 @@ export const podcastsComments = pgTable(
   ]
 );
 
+export const commentInteractions = pgTable(
+  "comment_interactions",
+  {
+    id: uuid()
+      .default(sql`uuid_generate_v4()`)
+      .primaryKey()
+      .notNull(),
+    user_id: uuid("user_id").notNull(),
+    comment_id: uuid("comment_id").notNull(),
+    interaction_type: text("interaction_type").notNull(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => [
+    unique("comment_interaction_user_comment").on(
+      table.user_id,
+      table.comment_id
+    ),
+    foreignKey({
+      columns: [table.user_id],
+      foreignColumns: [profiles.id],
+      name: "comment_interactions_user_id_fkey",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.comment_id],
+      foreignColumns: [podcastsComments.id],
+      name: "comment_interactions_comment_id_fkey",
+    }).onDelete("cascade"),
+  ]
+);
+
 export const podcasts = pgTable(
   "podcasts",
   {
@@ -209,7 +275,6 @@ export const podcasts = pgTable(
     media_type: text(),
     professor_id: uuid(),
     likes: integer().default(0),
-    dislikes: integer().default(0),
     views: integer().default(0).notNull(),
   },
   (table) => [
@@ -272,11 +337,11 @@ export const insertUserSchema = createInsertSchema(profiles).omit({
   created_at: true,
   updated_at: true,
 });
-export const insertPodcastLinkSchema = createInsertSchema(podcastsLink).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
+// export const insertPodcastLinkSchema = createInsertSchema(podcastsLink).omit({
+//   id: true,
+//   created_at: true,
+//   updated_at: true,
+// });
 export const insertProfileSchema = createInsertSchema(profiles).omit({
   id: true,
   created_at: true,
@@ -284,6 +349,10 @@ export const insertProfileSchema = createInsertSchema(profiles).omit({
 });
 export const insertUserRoleSchema = createInsertSchema(userRoles).omit({});
 export const insertPodcastViewSchema = createInsertSchema(podcastViews).omit({
+  id: true,
+  created_at: true,
+});
+export const insertPodcastLikeSchema = createInsertSchema(podcastLikes).omit({
   id: true,
   created_at: true,
 });
@@ -324,8 +393,8 @@ export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
 export type PlaylistItem = typeof playlistItems.$inferSelect;
 export type InsertPlaylistItem = z.infer<typeof insertPlaylistItemSchema>;
 
-export type PodcastLink = typeof podcastsLink.$inferSelect;
-export type InsertPodcastLink = z.infer<typeof insertPodcastLinkSchema>;
+// export type PodcastLink = typeof podcastsLink.$inferSelect;
+// export type InsertPodcastLink = z.infer<typeof insertPodcastLinkSchema>;
 
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
@@ -335,6 +404,9 @@ export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
 
 export type PodcastView = typeof podcastViews.$inferSelect;
 export type InsertPodcastView = z.infer<typeof insertPodcastViewSchema>;
+
+export type PodcastLike = typeof podcastLikes.$inferSelect;
+export type InsertPodcastLike = z.infer<typeof insertPodcastLikeSchema>;
 
 export type PodcastComment = typeof podcastsComments.$inferSelect;
 export type InsertPodcastComment = z.infer<typeof insertPodcastCommentSchema>;
