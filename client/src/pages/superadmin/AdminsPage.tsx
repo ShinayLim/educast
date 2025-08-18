@@ -15,17 +15,13 @@ async function fetchAdmins() {
 }
 
 async function updateAdminStatus(id: string, status: "active" | "rejected") {
-  console.log("Updating admin", id, "to", status); // 👈 debug
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({ status })
-    .eq("id", id)
-    .select(); // 👈 return updated row
-
-  console.log("Supabase response", { data, error }); // 👈 debug
+    .eq("id", id);
 
   if (error) throw error;
-  return data;
+  return { id, status };
 }
 
 export default function AdminsPage() {
@@ -109,9 +105,13 @@ export default function AdminsPage() {
                               Reject
                             </Button>
                           </>
+                        ) : admin.status === "active" ? (
+                          <span className="text-green-600 font-medium">
+                            ✅ Already Approved
+                          </span>
                         ) : (
-                          <span className="text-sm text-gray-400">
-                            No actions
+                          <span className="text-red-500 font-medium">
+                            ❌ Rejected
                           </span>
                         )}
                       </td>
