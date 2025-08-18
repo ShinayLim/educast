@@ -1,70 +1,143 @@
-import SuperAdminLayout from "@/pages/superadmin/SuperAdminLayout";
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import supabase from "@/lib/supabase";
+import SuperAdminLayout from "./SuperAdminLayout";
+
+async function fetchAdmins() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("role", "admin");
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function updateAdminStatus(id: string, status: "active" | "rejected") {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) throw error;
+  return { id, status };
+}
 
 export default function AdminsPage() {
-  const [admins, setAdmins] = useState([
-    { id: 1, name: "Admin One", email: "admin1@example.com" },
-    { id: 2, name: "Admin Two", email: "admin2@example.com" },
-  ]);
+  const queryClient = useQueryClient();
 
-  const handleAddAdmin = () => {
-    // Mock adding an admin (later hook to Supabase / DB)
-    const newAdmin = {
-      id: admins.length + 1,
-      name: `New Admin ${admins.length + 1}`,
-      email: `new${admins.length + 1}@example.com`,
-    };
-    setAdmins([...admins, newAdmin]);
-  };
+  const { data: admins, isLoading } = useQuery({
+    queryKey: ["admins"],
+    queryFn: fetchAdmins,
+  });
 
-  const handleDeleteAdmin = (id: number) => {
-    setAdmins(admins.filter((admin) => admin.id !== id));
-  };
+  const mutation = useMutation({
+    mutationFn: ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: "active" | "rejected";
+    }) => updateAdminStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+    },
+  });
 
   return (
     <SuperAdminLayout>
-      <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Manage Admins
-          </h1>
-          <Button onClick={handleAddAdmin} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add Admin
-          </Button>
-        </div>
+      <div className="space-y-6 p-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          Manage Admins
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400">
+          Approve, reject, or remove admin accounts
+        </p>
 
-        {/* Admins List */}
-        <div className="grid gap-4">
-          {admins.map((admin) => (
-            <Card
-              key={admin.id}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-            >
-              <CardContent className="flex items-center justify-between p-4">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {admin.name}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {admin.email}
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteAdmin(admin.id)}
-                  className="flex items-center gap-1"
-                >
-                  <Trash2 className="w-4 h-4" /> Remove
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card className="shadow-md border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+          <CardContent className="p-4">
+            {isLoading ? (
+              <p className="text-gray-500">Loading...</p>
+            ) : admins?.length ? (
+              <table className="min-w-full text-left text-gray-700 dark:text-gray-300">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2">Name</th>
+                    <th className="px-4 py-2">Email</th>
+                    <th className="px-4 py-2">Status</th>
+                    <th className="px-4 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {admins.map((admin) => (
+                    <tr
+                      key={admin.id}
+                      className="border-t border-gray-200 dark:border-gray-700"
+                    >
+                      <td className="px-4 py-2">{admin.full_name}</td>
+                      <td className="px-4 py-2">{admin.email}</td>
+                      <td className="px-4 py-2 capitalize">{admin.status}</td>
+                      <td className="px-4 py-2 flex gap-2 ">
+                        {admin.status === "pending" ? (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                mutation.mutate({
+                                  id: admin.id,
+                                  status: "active",
+                                })
+                              }
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() =>
+                                mutation.mutate({
+                                  id: admin.id,
+                                  status: "rejected",
+                                })
+                              }
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        ) : admin.status === "active" ? (
+                          <div className="flex gap-20 items-center">
+                            <span className="text-green-600 font-medium">
+                              ✅ Approved
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() =>
+                                mutation.mutate({
+                                  id: admin.id,
+                                  status: "rejected",
+                                })
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-red-500 font-medium">
+                            ❌ Rejected
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-500">No admins found.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </SuperAdminLayout>
   );

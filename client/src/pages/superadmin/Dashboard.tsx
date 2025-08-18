@@ -11,7 +11,8 @@ async function fetchCounts() {
   const { count: adminCount } = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true })
-    .eq("role", "admin");
+    .eq("role", "admin")
+    .eq("status", "active"); // ✅ only count active admins
 
   const { count: profCount } = await supabase
     .from("profiles")
@@ -28,6 +29,17 @@ async function fetchCounts() {
     professors: profCount ?? 0,
     students: studentCount ?? 0,
   };
+}
+
+// Fetch admins
+async function fetchAdmins() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, created_at, status")
+    .eq("role", "admin")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
 }
 
 // Fetch professors
@@ -56,6 +68,11 @@ export default function SuperAdminDashboard() {
   const { data: counts } = useQuery({
     queryKey: ["superadmin-counts"],
     queryFn: fetchCounts,
+  });
+
+  const { data: admins } = useQuery({
+    queryKey: ["superadmin-admins"],
+    queryFn: fetchAdmins,
   });
 
   const { data: professors } = useQuery({
@@ -88,7 +105,7 @@ export default function SuperAdminDashboard() {
               <ShieldCheck className="w-10 h-10 text-indigo-500" />
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Total Admins
+                  Total Admins (Active Only)
                 </p>
                 <p className="text-2xl font-bold">{counts?.admins ?? 0}</p>
               </div>
@@ -120,6 +137,56 @@ export default function SuperAdminDashboard() {
           </Card>
         </div>
 
+        {/* Registered Admins */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Registered Admins</h2>
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 overflow-x-auto">
+            <table className="min-w-full text-sm text-left">
+              <thead>
+                <tr className="border-b dark:border-gray-700">
+                  <th className="px-4 py-2">Name</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {admins?.length ? (
+                  admins.map((admin) => (
+                    <tr
+                      key={admin.id}
+                      className="border-b dark:border-gray-700"
+                    >
+                      <td className="px-4 py-2">{admin.full_name}</td>
+                      <td className="px-4 py-2">{admin.email}</td>
+                      <td
+                        className={`px-4 py-2 capitalize ${
+                          admin.status === "active"
+                            ? "text-green-500"
+                            : admin.status === "pending"
+                            ? "text-yellow-500"
+                            : "text-red-500"
+                        }`}
+                      >
+                        {admin.status}
+                      </td>
+                      <td className="px-4 py-2">
+                        {new Date(admin.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-2 text-gray-400">
+                      No admins found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Registered Professors */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Registered Professors</h2>
@@ -141,7 +208,7 @@ export default function SuperAdminDashboard() {
                       {new Date(prof.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-2">
-                      <Link href={`/professor/:id`}>
+                      <Link href={`/professor/${prof.id}`}>
                         <Button variant="outline" size="sm">
                           View Profile
                         </Button>
@@ -184,7 +251,7 @@ export default function SuperAdminDashboard() {
                       {new Date(student.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-2">
-                      <Link href={`/student/:id`}>
+                      <Link href={`/student/${student.id}`}>
                         <Button variant="outline" size="sm">
                           View Profile
                         </Button>

@@ -29,6 +29,7 @@ export const profiles = pgTable(
     username: text().notNull(),
     full_name: text("full_name").notNull(),
     role: text().notNull(),
+    status: text().default("pending"),
     created_at: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
