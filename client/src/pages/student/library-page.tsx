@@ -7,7 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import PodcastList from "@/components/shared/PodcastList";
-import { Podcast, User, Playlist, PodcastLike } from "@shared/schema";
+import { Podcast, User, Playlist } from "@shared/schema";
 import { Loader2, FolderPlus, List, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +45,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import supabase from "@/lib/supabase";
-import Meta from "@/components/Meta";
 
 const createPlaylistSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -60,8 +59,6 @@ export default function LibraryPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const [selectedPodcasts, setSelectedPodcasts] = useState<string[]>([]);
 
   const formatDate = (date: string | null) => {
     if (!date) return "--";
@@ -109,7 +106,9 @@ export default function LibraryPage() {
   });
 
   // Fetch liked podcasts
-  const { data: likedPodcasts = [], isLoading } = useQuery<Podcast[]>({
+  const { data: likedPodcasts = [], isLoading: isLoadingLiked } = useQuery<
+    Podcast[]
+  >({
     queryKey: ["/library/liked-podcasts", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -222,9 +221,6 @@ export default function LibraryPage() {
     }
   };
 
-  // const isLoading =
-  //   isLoadingPlaylists || isLoadingPodcasts || isLoadingUsers;
-
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -331,7 +327,7 @@ export default function LibraryPage() {
                   <h2 className="text-2xl font-bold">Your Playlists</h2>
                 </div>
 
-                {isLoading ? (
+                {isLoadingPlaylists ? (
                   <div className="flex justify-center items-center h-64">
                     <Loader2 className="w-10 h-10 animate-spin text-primary" />
                   </div>
@@ -423,7 +419,7 @@ export default function LibraryPage() {
                   <h2 className="text-2xl font-bold">Liked Content</h2>
                 </div>
 
-                {isLoading ? (
+                {isLoadingLiked ? (
                   <div className="flex justify-center items-center h-64">
                     <Loader2 className="w-10 h-10 animate-spin text-primary" />
                   </div>

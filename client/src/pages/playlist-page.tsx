@@ -8,7 +8,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { Playlist, PlaylistItem, Podcast, User } from "@shared/schema";
 import { Loader2, Clock, Play, MoreVertical, Music, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -81,7 +81,6 @@ export default function PlaylistPage() {
     enabled: !!playlistId,
   });
 
-  // Fetch podcast data for all items
   // Fetch podcast data for all items
   const { data: podcasts = [], isLoading: isLoadingPodcasts } = useQuery({
     queryKey: ["playlist-podcasts", playlistItems.map((i) => i.podcast_id)],

@@ -51,7 +51,7 @@ export default function PodcastList({
     );
   }
 
-  console.log("Podcast data:", podcasts);
+  console.log("Dan Podcast data:", podcasts);
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

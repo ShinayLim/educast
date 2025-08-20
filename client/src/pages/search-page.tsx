@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { PodcastCard } from "@/components/podcast/podcast-card";
 import { Podcast, Profile } from "@shared/schema";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
