@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
+import supabase from "@/lib/supabase";
+import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { PodcastCard } from "@/components/podcast/podcast-card";
-import { Podcast, User } from "@shared/schema";
+import { Podcast, Profile } from "@shared/schema";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PodcastList from "@/components/shared/PodcastList";
+
+type Professor = Profile;
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -71,9 +74,25 @@ export default function SearchPage() {
   });
 
   // Fetch all users (professors)
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ["/api/users"],
-  });
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<Professor[]>(
+    {
+      queryKey: ["/professors"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("role", "professor");
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        return data || [];
+      },
+      staleTime: 1000 * 60 * 10,
+      gcTime: 1000 * 60 * 60,
+    }
+  );
 
   // Filter podcasts based on search query
   const filteredPodcasts = useMemo(() => {
@@ -83,15 +102,19 @@ export default function SearchPage() {
 
     return allPodcasts.filter((podcast) => {
       const query = debouncedSearchQuery.toLowerCase();
+      const professor = users.find((p) => p.id === podcast.professor_id);
       console.log(
-        `Filtering podcast "${podcast.title}" against query "${query}"`
+        `Filtering podcast "${podcast.professor_id}" against query "${professor}"`
       );
       const matches =
         podcast.title.toLowerCase().includes(query) ||
         podcast.description.toLowerCase().includes(query) ||
         (podcast.tags &&
-          podcast.tags.some((tag) => tag.toLowerCase().includes(query)));
-      console.log(`Podcast "${podcast.title}" matches:`, matches);
+          podcast.tags.some((tag) => tag.toLowerCase().includes(query))) ||
+        (professor
+          ? professor.full_name.toLowerCase().includes(query) ||
+            professor.username.toLowerCase().includes(query)
+          : false);
       return matches;
     });
   }, [allPodcasts, debouncedSearchQuery]);
@@ -101,13 +124,12 @@ export default function SearchPage() {
   console.log("Filtered podcasts count:", filteredPodcasts.length);
 
   // Filter professors based on search query
-  const professors = users.filter((user) => user.role === "professor");
   const filteredProfessors = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
-      return professors;
+      return users;
     }
 
-    return professors.filter((professor) => {
+    return users.filter((professor) => {
       const query = debouncedSearchQuery.toLowerCase();
       return (
         professor.full_name.toLowerCase().includes(query) ||
@@ -115,7 +137,11 @@ export default function SearchPage() {
         (professor.bio && professor.bio.toLowerCase().includes(query))
       );
     });
-  }, [professors, debouncedSearchQuery]);
+  }, [users, debouncedSearchQuery]);
+
+  console.log("Search query:", searchQuery);
+  console.log("All podcasts count:", users.length);
+  console.log("Filtered podcasts count:", filteredProfessors.length);
 
   // Handle search from header
   const handleHeaderSearch = (query: string) => {
@@ -270,12 +296,12 @@ export default function SearchPage() {
                               </p>
                             )}
 
-                            <a
-                              href={`/professor/${professor.id}`}
+                            <Link
+                              href={`/profile/professor/${professor.id}`}
                               className="text-primary text-sm hover:underline"
                             >
                               View Profile
-                            </a>
+                            </Link>
                           </div>
                         </div>
                       ))}

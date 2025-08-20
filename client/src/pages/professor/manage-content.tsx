@@ -28,7 +28,7 @@ export default function ManageContentPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [podcastToDelete, setPodcastToDelete] = useState<number | null>(null);
+  const [podcastToDelete, setPodcastToDelete] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function ManageContentPage() {
       const { data, error } = await supabase
         .from("podcasts")
         .select("*")
-        .eq("professorId", user?.id)
+        .eq("professor_id", user?.id)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -86,7 +86,7 @@ export default function ManageContentPage() {
     }
   };
 
-  const formatDate = (date: Date | null) => {
+  const formatDate = (date: string | null) => {
     if (!date) return "--";
     return new Date(date).toLocaleDateString(undefined, {
       year: "numeric",
@@ -96,10 +96,10 @@ export default function ManageContentPage() {
   };
 
   const filteredAudio = podcasts.filter(
-    (p) => p.mediaType?.toLowerCase() === "audio"
+    (p) => p.media_type?.toLowerCase() === "audio"
   );
   const filteredVideo = podcasts.filter(
-    (p) => p.mediaType?.toLowerCase() === "video"
+    (p) => p.media_type?.toLowerCase() === "video"
   );
 
   const renderPodcastTable = (list: Podcast[]) => (
@@ -118,7 +118,7 @@ export default function ManageContentPage() {
         {list.map((podcast) => (
           <tr key={podcast.id} className="border-t border-border">
             <td className="p-3">{podcast.title}</td>
-            <td className="p-3 capitalize">{podcast.mediaType}</td>
+            <td className="p-3 capitalize">{podcast.media_type}</td>
             <td className="p-3">{formatDate(podcast.created_at)}</td>
             <td className="p-3 ">
               <PodcastViews podcastId={podcast.id} />
@@ -139,7 +139,7 @@ export default function ManageContentPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => setPodcastToDelete(podcast.id as number)}
+                    onClick={() => setPodcastToDelete(podcast.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -253,7 +253,7 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-function PodcastViews({ podcastId }: { podcastId: number }) {
+function PodcastViews({ podcastId }: { podcastId: string }) {
   const { data, isLoading } = useQuery<number>({
     queryKey: [`/podcasts/${podcastId}/views`],
     queryFn: async () => {
@@ -276,7 +276,7 @@ function PodcastViews({ podcastId }: { podcastId: number }) {
   return <span>{data} views</span>;
 }
 
-function PodcastCommentCount({ podcastId }: { podcastId: number }) {
+function PodcastCommentCount({ podcastId }: { podcastId: string }) {
   const { data, isLoading } = useQuery<number>({
     queryKey: [`/podcasts/${podcastId}/comments-count`],
     queryFn: async () => {

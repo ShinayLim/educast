@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useState } from "react";
 import { Profile } from "@shared/schema";
+import Meta from "@/components/Meta";
 
 type Student = Profile;
 
@@ -42,33 +43,39 @@ export default function StudentProfilePage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 md:ml-64">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+    <>
+      <Meta
+        title={`EduCast | ${student.full_name}`}
+        description={`${student.bio || "Student profile page"}`}
+      />
+      <div className="flex min-h-screen bg-background">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="flex-1 md:ml-64">
+          <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="container mx-auto px-4 pb-24 md:px-6">
-          <div className="py-8">
-            {/* Profile Section */}
-            <div className="flex items-center gap-6 mb-10">
-              <img
-                src={student.avatar_url || "/default-avatar.png"}
-                alt={student.full_name}
-                className="w-24 h-24 rounded-full border border-border"
-              />
-              <div className="flex flex-col">
-                <h1 className="text-3xl font-bold">{student.full_name}</h1>
-                <p className="text-muted-foreground">{student.email}</p>
-                {student.bio && (
-                  <p className="mt-2 text-foreground">{student.bio}</p>
-                )}
+          <main className="container mx-auto px-4 pb-24 md:px-6">
+            <div className="py-8">
+              {/* Profile Section */}
+              <div className="flex items-center gap-6 mb-10">
+                <img
+                  src={student.avatar_url || "/default-avatar.png"}
+                  alt={student.full_name}
+                  className="w-24 h-24 rounded-full border border-border"
+                />
+                <div className="flex flex-col">
+                  <h1 className="text-3xl font-bold">{student.full_name}</h1>
+                  <p className="text-muted-foreground">{student.email}</p>
+                  {student.bio && (
+                    <p className="mt-2 text-foreground">{student.bio}</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </main>
+          </main>
 
-        <MobileNav />
+          <MobileNav />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

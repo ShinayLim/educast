@@ -1,0 +1,1 @@
+ALTER TABLE "podcasts" ADD CONSTRAINT "podcasts_professor_id_profiles_id_fk" FOREIGN KEY ("professor_id") REFERENCES "public"."profiles"("id") ON DELETE set null ON UPDATE no action;

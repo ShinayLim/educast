@@ -22,10 +22,10 @@ import supabase from "@/lib/supabase";
 import { useState } from "react";
 
 interface PodcastCardProps {
-  id: number;
+  id: string;
   title: string;
   author: string;
-  authorId: number;
+  authorId?: string;
   thumbnailUrl?: string;
   duration?: number;
   mediaType: "audio" | "video";

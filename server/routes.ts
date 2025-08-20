@@ -152,48 +152,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.post(
-    "/api/podcasts/:id/thumbnail",
-    isProfessor,
-    thumbnailUpload.single("thumbnail"),
-    async (req, res) => {
-      try {
-        const podcastId = parseInt(req.params.id);
-        const podcast = await storage.getPodcast(podcastId);
+  // app.post(
+  //   "/api/podcasts/:id/thumbnail",
+  //   isProfessor,
+  //   thumbnailUpload.single("thumbnail"),
+  //   async (req, res) => {
+  //     try {
+  //       const podcastId = parseInt(req.params.id);
+  //       const podcast = await storage.getPodcast(podcastId);
 
-        if (!podcast) {
-          return res.status(404).json({ message: "Podcast not found" });
-        }
+  //       if (!podcast) {
+  //         return res.status(404).json({ message: "Podcast not found" });
+  //       }
 
-        // Check if user is the owner of the podcast
-        if (podcast.professorId !== req.user?.id) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
+  //       // Check if user is the owner of the podcast
+  //       if (podcast.professorId !== req.user?.id) {
+  //         return res.status(403).json({ message: "Forbidden" });
+  //       }
 
-        const thumbnailFile = req.file;
-        if (!thumbnailFile) {
-          return res
-            .status(400)
-            .json({ message: "No thumbnail file uploaded" });
-        }
+  //       const thumbnailFile = req.file;
+  //       if (!thumbnailFile) {
+  //         return res
+  //           .status(400)
+  //           .json({ message: "No thumbnail file uploaded" });
+  //       }
 
-        const thumbnailUrl = `/uploads/thumbnails/${thumbnailFile.filename}`;
+  //       const thumbnailUrl = `/uploads/thumbnails/${thumbnailFile.filename}`;
 
-        const updatedPodcast = await storage.updatePodcast(podcastId, {
-          thumbnailUrl,
-        });
-        res.json(updatedPodcast);
-      } catch (error: unknown) {
-        const err = error as Error;
-        console.error("Error uploading thumbnail:", err);
-        res.status(400).json({ message: err.message });
-      }
-    }
-  );
+  //       const updatedPodcast = await storage.updatePodcast(podcastId, {
+  //         thumbnailUrl,
+  //       });
+  //       res.json(updatedPodcast);
+  //     } catch (error: unknown) {
+  //       const err = error as Error;
+  //       console.error("Error uploading thumbnail:", err);
+  //       res.status(400).json({ message: err.message });
+  //     }
+  //   }
+  // );
 
   app.get("/api/podcasts", async (req, res) => {
     const podcasts = await storage.getAllPodcasts();
     res.json(podcasts);
+    console.log("HELOOOOOO");
   });
 
   app.get("/api/podcasts/search", async (req, res) => {
@@ -257,140 +258,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Playlist routes
-  app.post("/api/playlists", isAuthenticated, async (req, res) => {
-    try {
-      const playlistData = {
-        ...req.body,
-        userId: req.user?.id,
-      };
+  // app.post("/api/playlists", isAuthenticated, async (req, res) => {
+  //   try {
+  //     const playlistData = {
+  //       ...req.body,
+  //       userId: req.user?.id,
+  //     };
 
-      const validatedData = insertPlaylistSchema.parse(playlistData);
-      const playlist = await storage.createPlaylist(validatedData);
+  //     const validatedData = insertPlaylistSchema.parse(playlistData);
+  //     const playlist = await storage.createPlaylist(validatedData);
 
-      res.status(201).json(playlist);
-    } catch (error: unknown) {
-      const err = error as Error;
-      res.status(400).json({ message: err.message });
-    }
-  });
+  //     res.status(201).json(playlist);
+  //   } catch (error: unknown) {
+  //     const err = error as Error;
+  //     res.status(400).json({ message: err.message });
+  //   }
+  // });
 
-  app.get("/api/playlists", isAuthenticated, async (req, res) => {
-    const playlists = await storage.getPlaylistsByUserId(
-      parseInt(req.user?.id as string)
-    );
-    res.json(playlists);
-  });
+  // app.get("/api/playlists", isAuthenticated, async (req, res) => {
+  //   const playlists = await storage.getPlaylistsByUserId(
+  //     parseInt(req.user?.id as string)
+  //   );
+  //   res.json(playlists);
+  // });
 
-  app.get("/api/playlists/:id", isAuthenticated, async (req, res) => {
-    const playlist = await storage.getPlaylist(parseInt(req.params.id));
+  // app.get("/api/playlists/:id", isAuthenticated, async (req, res) => {
+  //   const playlist = await storage.getPlaylist(parseInt(req.params.id));
 
-    if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
-    }
+  //   if (!playlist) {
+  //     return res.status(404).json({ message: "Playlist not found" });
+  //   }
 
-    // Check if user is the owner of the playlist
-    if (playlist.userId !== req.user?.id) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+  //   // Check if user is the owner of the playlist
+  //   if (playlist.userId !== req.user?.id) {
+  //     return res.status(403).json({ message: "Forbidden" });
+  //   }
 
-    res.json(playlist);
-  });
+  //   res.json(playlist);
+  // });
 
-  app.patch("/api/playlists/:id", isAuthenticated, async (req, res) => {
-    const playlistId = parseInt(req.params.id);
-    const playlist = await storage.getPlaylist(playlistId);
+  // app.patch("/api/playlists/:id", isAuthenticated, async (req, res) => {
+  //   const playlistId = parseInt(req.params.id);
+  //   const playlist = await storage.getPlaylist(playlistId);
 
-    if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
-    }
+  //   if (!playlist) {
+  //     return res.status(404).json({ message: "Playlist not found" });
+  //   }
 
-    // Check if user is the owner of the playlist
-    if (playlist.userId !== req.user?.id) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+  //   // Check if user is the owner of the playlist
+  //   if (playlist.userId !== req.user?.id) {
+  //     return res.status(403).json({ message: "Forbidden" });
+  //   }
 
-    const updatedPlaylist = await storage.updatePlaylist(playlistId, req.body);
-    res.json(updatedPlaylist);
-  });
+  //   const updatedPlaylist = await storage.updatePlaylist(playlistId, req.body);
+  //   res.json(updatedPlaylist);
+  // });
 
-  app.delete("/api/playlists/:id", isAuthenticated, async (req, res) => {
-    const playlistId = parseInt(req.params.id);
-    const playlist = await storage.getPlaylist(playlistId);
+  // app.delete("/api/playlists/:id", isAuthenticated, async (req, res) => {
+  //   const playlistId = parseInt(req.params.id);
+  //   const playlist = await storage.getPlaylist(playlistId);
 
-    if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
-    }
+  //   if (!playlist) {
+  //     return res.status(404).json({ message: "Playlist not found" });
+  //   }
 
-    // Check if user is the owner of the playlist
-    if (playlist.userId !== req.user?.id) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+  //   // Check if user is the owner of the playlist
+  //   if (playlist.userId !== req.user?.id) {
+  //     return res.status(403).json({ message: "Forbidden" });
+  //   }
 
-    await storage.deletePlaylist(playlistId);
-    res.status(204).send();
-  });
+  //   await storage.deletePlaylist(playlistId);
+  //   res.status(204).send();
+  // });
 
-  // Playlist item routes
-  app.post("/api/playlist-items", isAuthenticated, async (req, res) => {
-    try {
-      const playlistId = parseInt(req.body.playlistId);
-      const playlist = await storage.getPlaylist(playlistId);
+  // // Playlist item routes
+  // app.post("/api/playlist-items", isAuthenticated, async (req, res) => {
+  //   try {
+  //     const playlistId = parseInt(req.body.playlistId);
+  //     const playlist = await storage.getPlaylist(playlistId);
 
-      if (!playlist) {
-        return res.status(404).json({ message: "Playlist not found" });
-      }
+  //     if (!playlist) {
+  //       return res.status(404).json({ message: "Playlist not found" });
+  //     }
 
-      // Check if user is the owner of the playlist
-      if (playlist.userId !== req.user?.id) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
+  //     // Check if user is the owner of the playlist
+  //     if (playlist.userId !== req.user?.id) {
+  //       return res.status(403).json({ message: "Forbidden" });
+  //     }
 
-      // Get current playlist items to determine the next order
-      const playlistItems = await storage.getPlaylistItems(playlistId);
-      const nextOrder =
-        playlistItems.length > 0
-          ? Math.max(...playlistItems.map((item) => item.order)) + 1
-          : 0;
+  //     // Get current playlist items to determine the next order
+  //     const playlistItems = await storage.getPlaylistItems(playlistId);
+  //     const nextOrder =
+  //       playlistItems.length > 0
+  //         ? Math.max(...playlistItems.map((item) => item.order)) + 1
+  //         : 0;
 
-      const playlistItemData = {
-        ...req.body,
-        order: nextOrder,
-      };
+  //     const playlistItemData = {
+  //       ...req.body,
+  //       order: nextOrder,
+  //     };
 
-      const validatedData = insertPlaylistItemSchema.parse(playlistItemData);
-      const playlistItem = await storage.addPodcastToPlaylist(validatedData);
+  //     const validatedData = insertPlaylistItemSchema.parse(playlistItemData);
+  //     const playlistItem = await storage.addPodcastToPlaylist(validatedData);
 
-      res.status(201).json(playlistItem);
-    } catch (error: unknown) {
-      const err = error as Error;
-      res.status(400).json({ message: err.message });
-    }
-  });
+  //     res.status(201).json(playlistItem);
+  //   } catch (error: unknown) {
+  //     const err = error as Error;
+  //     res.status(400).json({ message: err.message });
+  //   }
+  // });
 
-  app.get("/api/playlists/:id/items", isAuthenticated, async (req, res) => {
-    const playlistId = parseInt(req.params.id);
-    const playlist = await storage.getPlaylist(playlistId);
+  // app.get("/api/playlists/:id/items", isAuthenticated, async (req, res) => {
+  //   const playlistId = parseInt(req.params.id);
+  //   const playlist = await storage.getPlaylist(playlistId);
 
-    if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
-    }
+  //   if (!playlist) {
+  //     return res.status(404).json({ message: "Playlist not found" });
+  //   }
 
-    // Check if user is the owner of the playlist
-    if (playlist.userId !== req.user?.id) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+  //   // Check if user is the owner of the playlist
+  //   if (playlist.userId !== req.user?.id) {
+  //     return res.status(403).json({ message: "Forbidden" });
+  //   }
 
-    const playlistItems = await storage.getPlaylistItems(playlistId);
-    res.json(playlistItems);
-  });
+  //   const playlistItems = await storage.getPlaylistItems(playlistId);
+  //   res.json(playlistItems);
+  // });
 
-  app.delete("/api/playlist-items/:id", isAuthenticated, async (req, res) => {
-    const playlistItemId = parseInt(req.params.id);
-    // TODO: Add check to verify user owns the playlist this item belongs to
+  // app.delete("/api/playlist-items/:id", isAuthenticated, async (req, res) => {
+  //   const playlistItemId = parseInt(req.params.id);
+  //   // TODO: Add check to verify user owns the playlist this item belongs to
 
-    await storage.removePlaylistItem(playlistItemId);
-    res.status(204).send();
-  });
+  //   await storage.removePlaylistItem(playlistItemId);
+  //   res.status(204).send();
+  // });
 
   // Comment routes
   app.post("/api/podcasts/:id/comments", isAuthenticated, async (req, res) => {

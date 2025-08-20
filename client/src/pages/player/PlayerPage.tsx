@@ -13,8 +13,18 @@ import { useAuth } from "@/hooks/use-auth";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { comment } from "postcss";
+// import { comment } from "postcss";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import Meta from "@/components/Meta";
 
 export default function PlayerPage() {
   const { id } = useParams();
@@ -27,10 +37,8 @@ export default function PlayerPage() {
   const [activeInteractions, setActiveInteractions] = useState<Set<string>>(
     new Set()
   );
-  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
-  const [dislikedComments, setDislikedComments] = useState<Set<string>>(
-    new Set()
-  );
+  const [isPlaylistDialogOpen, setPlaylistDialogOpen] = useState(false);
+  const [newPlaylistTitle, setNewPlaylistTitle] = useState("");
 
   const { data: podcast, isLoading } = useQuery({
     queryKey: [`/player/${id}`],
@@ -171,7 +179,6 @@ export default function PlayerPage() {
 
   const handleLike = () => {
     if (!user) {
-      console.log("AHA!");
       toast({
         title: "Sign in required",
         description: "Please sign in to like podcasts",
@@ -325,8 +332,6 @@ export default function PlayerPage() {
     },
   });
 
-  // Similar update for dislikeCommentMutation...
-
   const dislikeCommentMutation = useMutation({
     mutationKey: ["dislikeComment"],
     mutationFn: async (commentId: string) => {
@@ -439,292 +444,526 @@ export default function PlayerPage() {
     return comments.filter((c) => c.parent_id === parentId);
   };
 
+  // Fetch playlists for the user
+  const { data: playlists = [] } = useQuery({
+    queryKey: ["/player/playlists", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("playlists")
+        .select("*")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Mutation: add podcast to existing playlist
+  const addToPlaylistMutation = useMutation({
+    mutationFn: async (playlistId: string) => {
+      if (!user?.id) throw new Error("Not logged in");
+      if (!id) throw new Error("Invalid podcast id");
+
+      // find current count to set order
+      const { count, error: countError } = await supabase
+        .from("playlist_items")
+        .select("*", { count: "exact", head: true })
+        .eq("playlist_id", playlistId);
+
+      if (countError) throw countError;
+
+      const nextOrder = (count ?? 0) + 1;
+
+      const { error } = await supabase.from("playlist_items").insert({
+        playlist_id: playlistId,
+        podcast_id: id,
+        order: nextOrder,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Added to Playlist" });
+      setPlaylistDialogOpen(false);
+      // Invalidate all related queries
+      queryClient.invalidateQueries({
+        queryKey: ["/player/playlists", user?.id],
+      });
+
+      // Invalidate any playlist-podcasts queries that might exist
+      queryClient.invalidateQueries({
+        queryKey: ["playlist-podcasts"],
+      });
+
+      // Alternative: Invalidate all queries starting with "playlist"
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          return (
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some(
+              (key) => typeof key === "string" && key.includes("playlist")
+            )
+          );
+        },
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Failed to add to playlist",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation: create new playlist and add podcast to it
+  const createPlaylistAndAddMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("Not logged in");
+      if (!id) throw new Error("Invalid podcast id");
+
+      const title = (newPlaylistTitle || "My Playlist").trim();
+
+      // 1) create playlist
+      const { data: playlist, error } = await supabase
+        .from("playlists")
+        .insert({
+          title,
+          description: "Created from player",
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // 2) add podcast as first item
+      const { error: itemError } = await supabase
+        .from("playlist_items")
+        .insert({
+          playlist_id: playlist.id,
+          podcast_id: id,
+          order: 1,
+        });
+
+      if (itemError) throw itemError;
+
+      return playlist;
+    },
+    onSuccess: () => {
+      toast({ title: "Playlist created" });
+      setNewPlaylistTitle("");
+      setPlaylistDialogOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: ["/player/playlists", user?.id],
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "playlist-podcasts",
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          return (
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some(
+              (key) => typeof key === "string" && key.includes("playlist")
+            )
+          );
+        },
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Could not create/add",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // const handleAddToPlaylist = () => {
+  //   if (!user) {
+  //     toast({
+  //       title: "Sign in required",
+  //       description: "Please sign in to like podcasts",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+  //   createPlaylistAndAddMutation.mutate();
+  // };
+
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 md:ml-64">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="container mx-auto px-4 pb-24 md:px-6">
-          <div className="py-6">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-10 h-10 animate-spin text-primary" />
-              </div>
-            ) : podcast ? (
-              <div className="space-y-6">
-                <h1 className="text-3xl font-bold">{podcast.title}</h1>
-                <p className="text-muted-foreground">{podcast.description}</p>
-
-                <div className="rounded border border-border overflow-hidden">
-                  <ReactPlayer
-                    url={getYoutubeUrl(podcast.youtube_url)}
-                    controls
-                    playing={true}
-                    width="100%"
-                    height="480px"
-                  />
+    <>
+      <Meta
+        title={podcast?.title || "EduCast Player"}
+        description={
+          podcast?.description || "Listen to this podcast on EduCast"
+        }
+      />
+      <div className="flex min-h-screen bg-background">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="flex-1 md:ml-64">
+          <Header onMenuClick={() => setSidebarOpen(true)} />
+          <main className="container mx-auto px-4 pb-24 md:px-6">
+            <div className="py-6">
+              {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <Loader2 className="w-10 h-10 animate-spin text-primary" />
                 </div>
+              ) : podcast ? (
+                <div className="space-y-6">
+                  <h1 className="text-3xl font-bold">{podcast.title}</h1>
+                  <p className="text-muted-foreground">{podcast.description}</p>
 
-                <div className="flex items-center gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleLike}
-                    className={cn(isLiked && "text-red-500")}
-                  >
-                    <Heart
-                      className={cn("h-4 w-4 mr-2", isLiked && "fill-current")}
+                  <div className="rounded border border-border overflow-hidden">
+                    <ReactPlayer
+                      url={getYoutubeUrl(podcast.youtube_url)}
+                      controls
+                      playing={true}
+                      width="100%"
+                      height="480px"
                     />
-                    {isLiked ? "Unlike" : "Like"}
-                  </Button>
-                </div>
+                  </div>
 
-                <div className="mt-8 space-y-4">
-                  <h3 className="text-xl font-bold">Comments</h3>
+                  <div className="flex items-center justify-between gap-2 mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLike}
+                      className={cn(isLiked && "text-red-500")}
+                    >
+                      <Heart
+                        className={cn(
+                          "h-4 w-4 mr-2",
+                          isLiked && "fill-current"
+                        )}
+                      />
+                      {isLiked ? "Unlike" : "Like"}
+                    </Button>
+                    <Button
+                      variant={"outline"}
+                      size="sm"
+                      className={"place-content-end"}
+                    >
+                      <Dialog
+                        open={isPlaylistDialogOpen}
+                        onOpenChange={setPlaylistDialogOpen}
+                      >
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            Add to Playlist
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add to Playlist</DialogTitle>
+                          </DialogHeader>
 
-                  <Textarea
-                    placeholder="Write a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                  />
+                          {/* Existing playlists */}
+                          {playlists.length > 0 && (
+                            <div className="space-y-2 mb-6">
+                              <p className="text-sm text-muted-foreground">
+                                Choose an existing playlist:
+                              </p>
+                              {playlists.map((p) => (
+                                <Button
+                                  key={p.id}
+                                  variant="outline"
+                                  className="w-full justify-start"
+                                  onClick={() =>
+                                    addToPlaylistMutation.mutate(p.id)
+                                  }
+                                  disabled={addToPlaylistMutation.isPending}
+                                >
+                                  {p.title}
+                                </Button>
+                              ))}
+                            </div>
+                          )}
 
-                  <Button
-                    onClick={() =>
-                      commentMutation.mutate({ comment: newComment })
-                    }
-                    disabled={
-                      !newComment.trim() || commentMutation.status === "pending"
-                    }
-                  >
-                    {commentMutation.status === "pending"
-                      ? "Posting..."
-                      : "Post Comment"}
-                  </Button>
+                          {/* Create new playlist */}
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">
+                              Or create a new playlist:
+                            </p>
+                            <Input
+                              placeholder="New playlist title"
+                              value={newPlaylistTitle}
+                              onChange={(e) =>
+                                setNewPlaylistTitle(e.target.value)
+                              }
+                            />
+                            <Button
+                              onClick={() =>
+                                createPlaylistAndAddMutation.mutate()
+                              }
+                              disabled={
+                                !newPlaylistTitle.trim() ||
+                                createPlaylistAndAddMutation.isPending
+                              }
+                              className="w-full"
+                            >
+                              {createPlaylistAndAddMutation.isPending
+                                ? "Creating..."
+                                : "Create & Add"}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </Button>
+                  </div>
 
-                  {loadingComments ? (
-                    <div className="text-center py-4">Loading comments...</div>
-                  ) : comments.length > 0 ? (
-                    <div className="space-y-4">
-                      {comments
-                        .filter((c) => !c.parent_id)
-                        .map(
-                          (c) => (
-                            console.log("Comment debug:", {
-                              commentId: c.id,
-                              comment: c.comment,
-                              userId: c.user_id,
-                              profile: c.profiles,
-                              id: user?.id,
-                            }),
-                            (
-                              <div
-                                key={c.id}
-                                className="p-4 border rounded space-y-2 bg-muted"
-                              >
-                                <div className="flex justify-between items-center">
-                                  <p className="font-medium">
-                                    {c.user_id === user?.id
-                                      ? "You"
-                                      : c.user?.full_name ||
-                                        c.user?.username ||
-                                        "Unknown User"}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {new Date(c.created_at).toLocaleString()}
-                                  </p>
-                                </div>
+                  <div className="mt-8 space-y-4">
+                    <h3 className="text-xl font-bold">Comments</h3>
 
-                                {editingCommentId === c.id ? (
-                                  <>
-                                    <Textarea
-                                      value={editingContent}
-                                      onChange={(e) =>
-                                        setEditingContent(e.target.value)
-                                      }
-                                    />
-                                    <div className="flex gap-2 mt-2">
-                                      <Button
-                                        size="sm"
-                                        onClick={() =>
-                                          editCommentMutation.mutate({
-                                            commentId: c.id,
-                                            newContent: editingContent,
-                                          })
+                    <Textarea
+                      placeholder="Write a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                    />
+
+                    <Button
+                      onClick={() =>
+                        commentMutation.mutate({ comment: newComment })
+                      }
+                      disabled={
+                        !newComment.trim() ||
+                        commentMutation.status === "pending"
+                      }
+                    >
+                      {commentMutation.status === "pending"
+                        ? "Posting..."
+                        : "Post Comment"}
+                    </Button>
+
+                    {loadingComments ? (
+                      <div className="text-center py-4">
+                        Loading comments...
+                      </div>
+                    ) : comments.length > 0 ? (
+                      <div className="space-y-4">
+                        {comments
+                          .filter((c) => !c.parent_id)
+                          .map(
+                            (c) => (
+                              console.log("Comment debug:", {
+                                commentId: c.id,
+                                comment: c.comment,
+                                userId: c.user_id,
+                                profile: c.profiles,
+                                id: user?.id,
+                              }),
+                              (
+                                <div
+                                  key={c.id}
+                                  className="p-4 border rounded space-y-2 bg-muted"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <p className="font-medium">
+                                      {c.user_id === user?.id
+                                        ? "You"
+                                        : c.user?.full_name ||
+                                          c.user?.username ||
+                                          "Unknown User"}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {new Date(c.created_at).toLocaleString()}
+                                    </p>
+                                  </div>
+
+                                  {editingCommentId === c.id ? (
+                                    <>
+                                      <Textarea
+                                        value={editingContent}
+                                        onChange={(e) =>
+                                          setEditingContent(e.target.value)
                                         }
-                                      >
-                                        Save
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                          setEditingCommentId(null)
-                                        }
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <p>{c.comment}</p>
-                                    <div className="flex gap-2 mt-2">
-                                      <Button
-                                        key={`like-${c.id}`} // Add unique key
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                          likeCommentMutation.mutate(c.id)
-                                        }
-                                        className={cn(
-                                          userInteractions.some(
-                                            (i) =>
-                                              i.comment_id === c.id &&
-                                              i.interaction_type === "like"
-                                          ) && "text-primary"
+                                      />
+                                      <div className="flex gap-2 mt-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={() =>
+                                            editCommentMutation.mutate({
+                                              commentId: c.id,
+                                              newContent: editingContent,
+                                            })
+                                          }
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            setEditingCommentId(null)
+                                          }
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p>{c.comment}</p>
+                                      <div className="flex gap-2 mt-2">
+                                        <Button
+                                          key={`like-${c.id}`} // Add unique key
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            likeCommentMutation.mutate(c.id)
+                                          }
+                                          className={cn(
+                                            userInteractions.some(
+                                              (i) =>
+                                                i.comment_id === c.id &&
+                                                i.interaction_type === "like"
+                                            ) && "bg-primary"
+                                          )}
+                                          disabled={
+                                            activeInteractions.has(c.id) ||
+                                            likeCommentMutation.isPending ||
+                                            dislikeCommentMutation.isPending
+                                          }
+                                        >
+                                          👍 {c.likes || 0}
+                                        </Button>
+                                        <Button
+                                          key={`dislike-${c.id}`} // Add unique key
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            dislikeCommentMutation.mutate(c.id)
+                                          }
+                                          className={cn(
+                                            userInteractions.some(
+                                              (i) =>
+                                                i.comment_id === c.id &&
+                                                i.interaction_type === "dislike"
+                                            ) && "bg-destructive"
+                                          )}
+                                          disabled={
+                                            activeInteractions.has(c.id) ||
+                                            likeCommentMutation.isPending ||
+                                            dislikeCommentMutation.isPending
+                                          }
+                                        >
+                                          👎 {c.dislikes || 0}
+                                        </Button>
+                                        {c.user_id === user?.id && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                              setEditingCommentId(c.id);
+                                              setEditingContent(c.comment);
+                                            }}
+                                          >
+                                            ✏️ Edit
+                                          </Button>
                                         )}
-                                        disabled={
-                                          activeInteractions.has(c.id) ||
-                                          likeCommentMutation.isPending ||
-                                          dislikeCommentMutation.isPending
-                                        }
-                                      >
-                                        👍 {c.likes || 0}
-                                      </Button>
-                                      <Button
-                                        key={`dislike-${c.id}`} // Add unique key
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                          dislikeCommentMutation.mutate(c.id)
-                                        }
-                                        className={cn(
-                                          userInteractions.some(
-                                            (i) =>
-                                              i.comment_id === c.id &&
-                                              i.interaction_type === "dislike"
-                                          ) && "text-destructive"
-                                        )}
-                                        disabled={
-                                          activeInteractions.has(c.id) ||
-                                          likeCommentMutation.isPending ||
-                                          dislikeCommentMutation.isPending
-                                        }
-                                      >
-                                        👎 {c.dislikes || 0}
-                                      </Button>
-                                      {c.user_id === user?.id && (
                                         <Button
                                           variant="outline"
                                           size="sm"
+                                          onClick={() => setReplyingTo(c.id)}
+                                        >
+                                          💬 Reply
+                                        </Button>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {getReplies(c.id).length > 0 && (
+                                    <div className="mt-3 pl-4 border-l space-y-2">
+                                      {getReplies(c.id).map((r) => (
+                                        <div
+                                          key={r.id}
+                                          className="p-3 bg-background rounded border"
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <p className="font-medium">
+                                              {r.user_id === user?.id
+                                                ? "You"
+                                                : r.user?.full_name ||
+                                                  r.user?.username ||
+                                                  "Unknown User"}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                              {new Date(
+                                                r.created_at
+                                              ).toLocaleString()}
+                                            </p>
+                                          </div>
+                                          <p>{r.comment}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {replyingTo === c.id && (
+                                    <div className="mt-3 space-y-2">
+                                      <Textarea
+                                        placeholder="Write a reply..."
+                                        value={replyContent}
+                                        onChange={(e) =>
+                                          setReplyContent(e.target.value)
+                                        }
+                                      />
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
                                           onClick={() => {
-                                            setEditingCommentId(c.id);
-                                            setEditingContent(c.comment);
+                                            commentMutation.mutate({
+                                              comment: replyContent,
+                                              parentId: replyingTo!,
+                                            });
+                                            setReplyingTo(null);
+                                            setReplyContent("");
                                           }}
                                         >
-                                          ✏️ Edit
+                                          Reply
                                         </Button>
-                                      )}
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setReplyingTo(c.id)}
-                                      >
-                                        💬 Reply
-                                      </Button>
-                                    </div>
-                                  </>
-                                )}
-
-                                {getReplies(c.id).length > 0 && (
-                                  <div className="mt-3 pl-4 border-l space-y-2">
-                                    {getReplies(c.id).map((r) => (
-                                      <div
-                                        key={r.id}
-                                        className="p-3 bg-background rounded border"
-                                      >
-                                        <div className="flex justify-between items-center">
-                                          <p className="font-medium">
-                                            {r.user_id === user?.id
-                                              ? "You"
-                                              : r.user?.full_name ||
-                                                r.user?.username ||
-                                                "Unknown User"}
-                                          </p>
-                                          <p className="text-sm text-muted-foreground">
-                                            {new Date(
-                                              r.created_at
-                                            ).toLocaleString()}
-                                          </p>
-                                        </div>
-                                        <p>{r.comment}</p>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setReplyingTo(null);
+                                            setReplyContent("");
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
                                       </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {replyingTo === c.id && (
-                                  <div className="mt-3 space-y-2">
-                                    <Textarea
-                                      placeholder="Write a reply..."
-                                      value={replyContent}
-                                      onChange={(e) =>
-                                        setReplyContent(e.target.value)
-                                      }
-                                    />
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          commentMutation.mutate({
-                                            comment: replyContent,
-                                            parentId: replyingTo!,
-                                          });
-                                          setReplyingTo(null);
-                                          setReplyContent("");
-                                        }}
-                                      >
-                                        Reply
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                          setReplyingTo(null);
-                                          setReplyContent("");
-                                        }}
-                                      >
-                                        Cancel
-                                      </Button>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
+                                  )}
+                                </div>
+                              )
                             )
-                          )
-                        )}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No comments yet.</p>
-                  )}
-                </div>
+                          )}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No comments yet.</p>
+                    )}
+                  </div>
 
-                <Button variant="outline" onClick={() => navigate("/")}>
-                  ← Back to Dashboard
-                </Button>
-              </div>
-            ) : (
-              <div className="text-center py-16">
-                <h3 className="text-xl font-bold mb-4">Podcast not found</h3>
-                <Button variant="outline" onClick={() => navigate("/")}>
-                  ← Back to Dashboard
-                </Button>
-              </div>
-            )}
-          </div>
-        </main>
-        <MobileNav />
+                  <Button variant="outline" onClick={() => navigate("/")}>
+                    ← Back to Dashboard
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <h3 className="text-xl font-bold mb-4">Podcast not found</h3>
+                  <Button variant="outline" onClick={() => navigate("/")}>
+                    ← Back to Dashboard
+                  </Button>
+                </div>
+              )}
+            </div>
+          </main>
+          <MobileNav />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

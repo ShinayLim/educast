@@ -148,7 +148,9 @@ export function Header({ onMenuClick, onSearch }: HeaderProps) {
 
             <div className="hidden md:flex md:flex-col">
               <span className="text-sm font-medium capitalize">
-                <Link href={`/${user.role}/${user.id}`}>{user.fullName}</Link>
+                <Link href={`/profile/${user.role}/${user.id}`}>
+                  {user.fullName}
+                </Link>
               </span>
 
               <Button

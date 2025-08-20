@@ -1,17 +1,24 @@
+// client\src\pages\student\library-page.tsx
+
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { PodcastCard } from "@/components/podcast/podcast-card";
+import PodcastList from "@/components/shared/PodcastList";
 import { Podcast, User, Playlist, PodcastLike } from "@shared/schema";
 import { Loader2, FolderPlus, List, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useEffect } from "react";
 import { useState } from "react";
 import {
@@ -24,7 +31,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -38,6 +44,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import supabase from "@/lib/supabase";
+import Meta from "@/components/Meta";
 
 const createPlaylistSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -54,6 +62,15 @@ export default function LibraryPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [selectedPodcasts, setSelectedPodcasts] = useState<string[]>([]);
+
+  const formatDate = (date: string | null) => {
+    if (!date) return "--";
+    return new Date(date).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   // Redirect if user is a professor
   useEffect(() => {
@@ -75,25 +92,64 @@ export default function LibraryPage() {
   const { data: playlists = [], isLoading: isLoadingPlaylists } = useQuery<
     Playlist[]
   >({
-    queryKey: ["/api/playlists"],
-    enabled: !!user,
+    queryKey: ["/library/playlists"],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase
+        .from("playlists")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    enabled: !!user?.id,
   });
 
   // Fetch liked podcasts
-  const { data: likes = [], isLoading: isLoadingLikes } = useQuery<
-    PodcastLike[]
-  >({
-    queryKey: ["/api/likes"],
-    enabled: !!user,
+  const { data: likedPodcasts = [], isLoading } = useQuery<Podcast[]>({
+    queryKey: ["/library/liked-podcasts", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase
+        .from("podcast_likes")
+        .select(
+          `
+            podcast_id,
+            user_id,
+            podcasts (
+              id,
+              title,
+              description,
+              youtube_url,
+              likes,
+              views,
+              created_at,
+              professor_id,
+              media_type
+            )
+          `
+        )
+        .eq("user_id", user.id);
+
+      if (error) throw new Error(error.message);
+
+      // Flatten so we just return the podcasts
+      return (data ?? []).map((row: any) => row.podcasts).filter(Boolean);
+    },
+    enabled: !!user?.id,
   });
 
   // Fetch all podcasts
-  const { data: allPodcasts = [], isLoading: isLoadingPodcasts } = useQuery<
-    Podcast[]
-  >({
-    queryKey: ["/api/podcasts"],
-    enabled: !!user && likes.length > 0,
-  });
+  // const { data: allPodcasts = [], isLoading: isLoadingPodcasts } = useQuery<
+  //   Podcast[]
+  // >({
+  //   queryKey: ["/api/podcasts"],
+  //   enabled: !!user && likes.length > 0,
+  // });
 
   // Fetch users (professors)
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
@@ -101,21 +157,28 @@ export default function LibraryPage() {
     enabled: !!user,
   });
 
-  // Filter podcasts that are liked by the user
-  const likedPodcasts = allPodcasts.filter((podcast) =>
-    likes.some((like) => like.podcast_id === podcast.id)
-  );
-
   // Create playlist mutation
   const createPlaylistMutation = useMutation({
     mutationFn: async (data: z.infer<typeof createPlaylistSchema>) => {
-      return apiRequest("POST", "/api/playlists", {
-        ...data,
-        userId: user?.id,
-      });
+      if (!user?.id) throw new Error("Not logged in");
+
+      const { data: newPlaylist, error } = await supabase
+        .from("playlists")
+        .insert([
+          {
+            title: data.title,
+            description: data.description,
+            user_id: user.id,
+          },
+        ])
+        .select()
+        .single(); // returns the inserted row
+
+      if (error) throw new Error(error.message);
+      return newPlaylist;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["/library/playlists"] });
       toast({
         title: "Playlist created",
         description: "Your new playlist has been created successfully.",
@@ -123,7 +186,7 @@ export default function LibraryPage() {
       form.reset();
       setIsDialogOpen(false);
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to create playlist. Please try again.",
@@ -136,8 +199,31 @@ export default function LibraryPage() {
     createPlaylistMutation.mutate(data);
   };
 
-  const isLoading =
-    isLoadingPlaylists || isLoadingLikes || isLoadingPodcasts || isLoadingUsers;
+  const handleDeletePlaylist = async (playlist: Playlist) => {
+    if (!user?.id) return;
+    const { error } = await supabase
+      .from("playlists")
+      .delete()
+      .eq("id", playlist.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete playlist. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["/library/playlists"] });
+      toast({
+        title: "Playlist deleted",
+        description: `"${playlist.title}" has been deleted sucessfully.`,
+      });
+    }
+  };
+
+  // const isLoading =
+  //   isLoadingPlaylists || isLoadingPodcasts || isLoadingUsers;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -252,8 +338,14 @@ export default function LibraryPage() {
                 ) : playlists.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {playlists.map((playlist) => (
-                      <Link key={playlist.id} href={`/playlist/${playlist.id}`}>
-                        <a className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+                      <div
+                        key={playlist.id}
+                        className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col"
+                      >
+                        <Link
+                          href={`/playlist/${playlist.id}`}
+                          className="flex-1"
+                        >
                           <div className="bg-primary/10 border-b border-primary/20 aspect-square flex items-center justify-center">
                             <List className="h-16 w-16 text-primary/60" />
                           </div>
@@ -267,14 +359,33 @@ export default function LibraryPage() {
                               </p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                              Created{" "}
-                              {new Date(
-                                playlist.created_at
-                              ).toLocaleDateString()}
+                              Created {formatDate(playlist.created_at)}
                             </p>
                           </div>
-                        </a>
-                      </Link>
+                        </Link>
+
+                        {/* Three dots menu */}
+                        <div className="flex justify-end p-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={handleDeletePlaylist.bind(
+                                  null,
+                                  playlist
+                                )}
+                              >
+                                Delete Playlist
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
                     ))}
 
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -307,47 +418,43 @@ export default function LibraryPage() {
               </div>
 
               {/* Liked Content Section */}
-              {/* <div>
+              <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold">Liked Content</h2>
                 </div>
-                
+
                 {isLoading ? (
                   <div className="flex justify-center items-center h-64">
                     <Loader2 className="w-10 h-10 animate-spin text-primary" />
                   </div>
                 ) : likedPodcasts.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {likedPodcasts.map(podcast => (
-                      <PodcastCard
-                        key={podcast.id}
-                        id={podcast.id}
-                        title={podcast.title}
-                        author={users.find(u => u.id === podcast.professorId)?.fullName || "Unknown"}
-                        authorId={podcast.professorId}
-                        thumbnailUrl={podcast.thumbnailUrl}
-                        duration={podcast.duration}
-                        mediaType={podcast.mediaType as "audio" | "video"}
-                      />
-                    ))}
-                  </div>
+                  <PodcastList
+                    podcasts={likedPodcasts}
+                    emptyMessage="You haven't liked any podcasts yet."
+                    variant="default"
+                  />
                 ) : (
                   <div className="bg-card border border-border rounded-lg p-8 text-center">
-                    <svg className="h-12 w-12 mx-auto mb-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      className="h-12 w-12 mx-auto mb-4 text-muted-foreground"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                     </svg>
                     <h3 className="text-xl font-bold mb-2">No liked content</h3>
                     <p className="text-muted-foreground mb-6">
-                      You haven't liked any podcasts yet. Start exploring and like content to find it here.
+                      You haven't liked any podcasts yet. Start exploring and
+                      like content to find it here.
                     </p>
                     <Button asChild>
-                      <Link href="/browse">
-                        Browse Podcasts
-                      </Link>
+                      <Link href="/search">Browse Podcasts</Link>
                     </Button>
                   </div>
                 )}
-              </div> */}
+              </div>
             </div>
           </div>
         </main>

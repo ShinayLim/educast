@@ -273,7 +273,7 @@ export const podcasts = pgTable(
       mode: "string",
     }).default(sql`timezone('utc'::text, now())`),
     media_type: text(),
-    professor_id: uuid(),
+    professor_id: uuid("professor_id"),
     likes: integer().default(0),
     views: integer().default(0).notNull(),
   },
@@ -282,6 +282,11 @@ export const podcasts = pgTable(
       "podcasts_youtube_url_check",
       sql`youtube_url ~ '^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$'::text`
     ),
+    foreignKey({
+      columns: [table.professor_id],
+      foreignColumns: [profiles.id],
+      name: "podcasts_professor_id_profiles_id_fk",
+    }).onDelete("set null"),
   ]
 );
 
@@ -313,6 +318,14 @@ export const playlistItems = pgTable(
     playlist_id: uuid("playlist_id").notNull(),
     podcast_id: uuid("podcast_id").notNull(),
     order: integer().notNull(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    // updated_at: timestamp("updated_at", {
+    //   withTimezone: true,
+    //   mode: "string",
+    // }).defaultNow(),
   },
   (table) => [
     foreignKey({

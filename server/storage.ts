@@ -1,18 +1,30 @@
 // server/storage.ts
 import * as dotenv from "dotenv";
-dotenv.config();  // ← load .env into process.env
+dotenv.config(); // ← load .env into process.env
 import session from "express-session";
 import MemStoreFactory from "memorystore";
 import { createClient } from "@supabase/supabase-js";
 
 import {
-  type User,       type InsertUser,
-  type Podcast,    type InsertPodcast,
-  type Playlist,   type InsertPlaylist,
-  type PlaylistItem, type InsertPlaylistItem,
-  type Comment,    type InsertComment,
-  type Like,       type InsertLike,
-  type View,       type InsertView,
+  type User,
+  type InsertUser,
+  type Podcast,
+  type InsertPodcast,
+  type Playlist,
+  type InsertPlaylist,
+  type PlaylistItem,
+  type InsertPlaylistItem,
+  type podcastsComments,
+  type insertPodcastCommentSchema,
+  type podcastLikes,
+  type insertPodcastLikeSchema,
+  type podcastViews,
+  type insertPodcastViewSchema,
+  InsertPodcastComment,
+  InsertPodcastLike,
+  PodcastLike,
+  InsertPodcastView,
+  PodcastView,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -26,30 +38,39 @@ export interface IStorage {
   getPodcastsByProfessorId(professorId: number): Promise<Podcast[]>;
   getAllPodcasts(): Promise<Podcast[]>;
   searchPodcasts(query: string): Promise<Podcast[]>;
-  updatePodcast(id: number, podcast: Partial<Podcast>): Promise<Podcast | undefined>;
+  updatePodcast(
+    id: number,
+    podcast: Partial<Podcast>
+  ): Promise<Podcast | undefined>;
   deletePodcast(id: number): Promise<boolean>;
 
   createPlaylist(playlist: InsertPlaylist): Promise<Playlist>;
   getPlaylist(id: number): Promise<Playlist | undefined>;
   getPlaylistsByUserId(userId: number): Promise<Playlist[]>;
-  updatePlaylist(id: number, playlist: Partial<Playlist>): Promise<Playlist | undefined>;
+  updatePlaylist(
+    id: number,
+    playlist: Partial<Playlist>
+  ): Promise<Playlist | undefined>;
   deletePlaylist(id: number): Promise<boolean>;
 
   addPodcastToPlaylist(item: InsertPlaylistItem): Promise<PlaylistItem>;
   getPlaylistItems(playlistId: number): Promise<PlaylistItem[]>;
   removePlaylistItem(id: number): Promise<boolean>;
 
-  createComment(comment: InsertComment): Promise<Comment>;
+  createComment(comment: InsertPodcastComment): Promise<Comment>;
   getCommentsByPodcastId(podcastId: number): Promise<Comment[]>;
   deleteComment(id: number): Promise<boolean>;
 
-  createLike(like: InsertLike): Promise<Like>;
-  getLikesByPodcastId(podcastId: number): Promise<Like[]>;
-  getLikeByUserAndPodcast(userId: number, podcastId: number): Promise<Like | undefined>;
+  createLike(like: InsertPodcastLike): Promise<PodcastLike>;
+  getLikesByPodcastId(podcastId: number): Promise<PodcastLike[]>;
+  getLikeByUserAndPodcast(
+    userId: number,
+    podcastId: number
+  ): Promise<PodcastLike | undefined>;
   deleteLike(id: number): Promise<boolean>;
 
-  createView(view: InsertView): Promise<View>;
-  getViewsByPodcastId(podcastId: number): Promise<View[]>;
+  createView(view: InsertPodcastView): Promise<PodcastView>;
+  getViewsByPodcastId(podcastId: number): Promise<PodcastView[]>;
 
   sessionStore: session.Store;
 }
@@ -98,15 +119,16 @@ export class SupabaseStorage implements IStorage {
   async createUser(u: InsertUser) {
     const { data, error } = await supabase
       .from("users")
-      .insert([{
-        username:   u.username,
-        email:      u.email,
-        full_name:  u.fullName,
-        password:   u.password,
-        role:       u.role,
-        avatar_url: u.avatarUrl ?? null,
-        bio:        u.bio ?? null,
-      }])
+      .insert([
+        {
+          username: u.username,
+          email: u.email,
+          full_name: u.full_name,
+          role: u.role,
+          avatar_url: u.avatar_url ?? null,
+          bio: u.bio ?? null,
+        },
+      ])
       .select("*")
       .single();
     if (error) throw error;
@@ -115,13 +137,12 @@ export class SupabaseStorage implements IStorage {
 
   async updateUser(id: number, u: Partial<User>) {
     const p: Record<string, any> = {};
-    if (u.username  !== undefined) p.username   = u.username;
-    if (u.email     !== undefined) p.email      = u.email;
-    if (u.fullName  !== undefined) p.full_name  = u.fullName;
-    if (u.password  !== undefined) p.password   = u.password;
-    if (u.role      !== undefined) p.role       = u.role;
-    if (u.avatarUrl !== undefined) p.avatar_url = u.avatarUrl;
-    if (u.bio       !== undefined) p.bio        = u.bio;
+    if (u.username !== undefined) p.username = u.username;
+    if (u.email !== undefined) p.email = u.email;
+    if (u.full_name !== undefined) p.full_name = u.full_name;
+    if (u.role !== undefined) p.role = u.role;
+    if (u.avatar_url !== undefined) p.avatar_url = u.avatar_url;
+    if (u.bio !== undefined) p.bio = u.bio;
 
     const { data, error } = await supabase
       .from("users")
@@ -137,17 +158,16 @@ export class SupabaseStorage implements IStorage {
   async createPodcast(c: InsertPodcast) {
     const { data, error } = await supabase
       .from("podcasts")
-      .insert([{
-        title:         c.title,
-        description:   c.description ?? null,
-        media_url:     c.mediaUrl,
-        media_type:    c.mediaType,
-        professor_id:  c.professorId,
-        thumbnail_url: c.thumbnailUrl ?? null,
-        duration:      c.duration ?? null,
-        transcript:    c.transcript ?? null,
-        tags:          c.tags ?? null,
-      }])
+      .insert([
+        {
+          title: c.title,
+          description: c.description ?? null,
+          media_url: c.youtube_url,
+          media_type: c.media_type,
+          professor_id: c.professor_id,
+          tags: c.tags ?? null,
+        },
+      ])
       .select("*")
       .single();
     if (error) throw error;
@@ -174,9 +194,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getAllPodcasts() {
-    const { data, error } = await supabase
-      .from("podcasts")
-      .select("*");
+    const { data, error } = await supabase.from("podcasts").select("*");
     if (error) throw error;
     return data ?? [];
   }
@@ -192,15 +210,12 @@ export class SupabaseStorage implements IStorage {
 
   async updatePodcast(id: number, c: Partial<Podcast>) {
     const p: Record<string, any> = {};
-    if (c.title        !== undefined) p.title         = c.title;
-    if (c.description  !== undefined) p.description   = c.description;
-    if (c.mediaUrl     !== undefined) p.media_url     = c.mediaUrl;
-    if (c.mediaType    !== undefined) p.media_type    = c.mediaType;
-    if (c.professorId  !== undefined) p.professor_id  = c.professorId;
-    if (c.thumbnailUrl !== undefined) p.thumbnail_url = c.thumbnailUrl;
-    if (c.duration     !== undefined) p.duration      = c.duration;
-    if (c.transcript   !== undefined) p.transcript    = c.transcript;
-    if (c.tags         !== undefined) p.tags          = c.tags;
+    if (c.title !== undefined) p.title = c.title;
+    if (c.description !== undefined) p.description = c.description;
+    if (c.youtube_url !== undefined) p.media_url = c.youtube_url;
+    if (c.media_type !== undefined) p.media_type = c.media_type;
+    if (c.professor_id !== undefined) p.professor_id = c.professor_id;
+    if (c.tags !== undefined) p.tags = c.tags;
 
     const { data, error } = await supabase
       .from("podcasts")
@@ -213,10 +228,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deletePodcast(id: number) {
-    const { error } = await supabase
-      .from("podcasts")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("podcasts").delete().eq("id", id);
     if (error) throw error;
     return true;
   }
@@ -225,11 +237,13 @@ export class SupabaseStorage implements IStorage {
   async createPlaylist(p: InsertPlaylist) {
     const { data, error } = await supabase
       .from("playlists")
-      .insert([{
-        title:       p.title,
-        description: p.description ?? null,
-        user_id:     p.userId,
-      }])
+      .insert([
+        {
+          title: p.title,
+          description: p.description ?? null,
+          user_id: p.user_id,
+        },
+      ])
       .select("*")
       .single();
     if (error) throw error;
@@ -257,9 +271,9 @@ export class SupabaseStorage implements IStorage {
 
   async updatePlaylist(id: number, p: Partial<Playlist>) {
     const o: Record<string, any> = {};
-    if (p.title       !== undefined) o.title       = p.title;
+    if (p.title !== undefined) o.title = p.title;
     if (p.description !== undefined) o.description = p.description;
-    if (p.userId      !== undefined) o.user_id     = p.userId;
+    if (p.user_id !== undefined) o.user_id = p.user_id;
 
     const { data, error } = await supabase
       .from("playlists")
@@ -272,10 +286,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deletePlaylist(id: number) {
-    const { error } = await supabase
-      .from("playlists")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("playlists").delete().eq("id", id);
     if (error) throw error;
     return true;
   }
@@ -284,11 +295,13 @@ export class SupabaseStorage implements IStorage {
   async addPodcastToPlaylist(i: InsertPlaylistItem) {
     const { data, error } = await supabase
       .from("playlist_items")
-      .insert([{
-        playlist_id: i.playlistId,
-        podcast_id:  i.podcastId,
-        order:       i.order,
-      }])
+      .insert([
+        {
+          playlist_id: i.playlist_id,
+          podcast_id: i.podcast_id,
+          order: i.order,
+        },
+      ])
       .select("*")
       .single();
     if (error) throw error;
@@ -315,14 +328,16 @@ export class SupabaseStorage implements IStorage {
   }
 
   // — Comments —
-  async createComment(c: InsertComment) {
+  async createComment(c: InsertPodcastComment) {
     const { data, error } = await supabase
       .from("comments")
-      .insert([{
-        podcast_id: c.podcastId,
-        user_id:    c.userId,
-        content:    c.content,
-      }])
+      .insert([
+        {
+          podcast_id: c.podcast_id,
+          user_id: c.user_id,
+          content: c.comment,
+        },
+      ])
       .select("*")
       .single();
     if (error) throw error;
@@ -340,22 +355,21 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteComment(id: number) {
-    const { error } = await supabase
-      .from("comments")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("comments").delete().eq("id", id);
     if (error) throw error;
     return true;
   }
 
   // — Likes —
-  async createLike(l: InsertLike) {
+  async createLike(l: InsertPodcastLike) {
     const { data, error } = await supabase
       .from("likes")
-      .insert([{
-        user_id:    l.userId,
-        podcast_id: l.podcastId,
-      }])
+      .insert([
+        {
+          user_id: l.user_id,
+          podcast_id: l.podcast_id,
+        },
+      ])
       .select("*")
       .single();
     if (error) throw error;
@@ -383,22 +397,21 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteLike(id: number) {
-    const { error } = await supabase
-      .from("likes")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("likes").delete().eq("id", id);
     if (error) throw error;
     return true;
   }
 
   // — Views —
-  async createView(v: InsertView) {
+  async createView(v: InsertPodcastView) {
     const { data, error } = await supabase
       .from("views")
-      .insert([{
-        user_id:    v.userId,
-        podcast_id: v.podcastId,
-      }])
+      .insert([
+        {
+          user_id: v.user_id,
+          podcast_id: v.podcast_id,
+        },
+      ])
       .select("*")
       .single();
     if (error) throw error;

@@ -14,8 +14,8 @@ import ManageContentPage from "@/pages/professor/manage-content";
 import LibraryPage from "@/pages/student/library-page";
 import PlayerPage from "@/pages/player/PlayerPage";
 import EditPodcastPage from "@/pages/professor/EditPodcastPage";
-import ProfessorProfilePage from "@/pages/professor/ProfessorProfilePage";
-import StudentProfilePage from "@/pages/student/StudentProfilePage";
+import ProfessorProfilePage from "@/pages/profile/ProfessorProfilePage";
+import StudentProfilePage from "@/pages/profile/StudentProfilePage";
 import SuperAdminLogin from "@/pages/superadmin/SuperAdminLogin";
 
 import AdminsPage from "@/pages/superadmin/AdminsPage";
@@ -28,6 +28,8 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import SuperAdminDashboard from "@/pages/superadmin/Dashboard";
 import AdminSignup from "./pages/admin/AdminSignup";
 import SuperAdminRoute from "@/pages/superadmin/SuperAdminRoute";
+
+import Meta from "@/components/Meta";
 
 function Router() {
   return (
@@ -44,9 +46,15 @@ function Router() {
         component={EditPodcastPage}
       />{" "}
       <ProtectedRoute path="/student/library" component={LibraryPage} />
-      <ProtectedRoute path="/student/:id" component={StudentProfilePage} />
+      <ProtectedRoute
+        path="/profile/student/:id"
+        component={StudentProfilePage}
+      />
       <ProtectedRoute path="/player/:id" component={PlayerPage} />
-      <ProtectedRoute path="/professor/:id" component={ProfessorProfilePage} />
+      <ProtectedRoute
+        path="/profile/professor/:id"
+        component={ProfessorProfilePage}
+      />
       <Route path="/superadmin/login" component={SuperAdminLogin} />
       <Route path="/superadmin/dashboard">
         <SuperAdminRoute>
@@ -68,6 +76,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <TooltipProvider>
+            <Meta />
             <Toaster />
             <Router />
           </TooltipProvider>
